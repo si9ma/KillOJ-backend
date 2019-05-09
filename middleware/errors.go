@@ -73,7 +73,7 @@ func Errors() gin.HandlerFunc {
 			// If there was no public or bind error, display default 500 message
 			if !c.Writer.Written() {
 				e := &gin.Error{}
-				e = e.SetMeta(kerror.InternalServerErrorGeneral)
+				e = e.SetMeta(kerror.ErrInternalServerErrorGeneral)
 				writeResponse(c, e, nil)
 			}
 
@@ -88,7 +88,7 @@ func writeResponse(c *gin.Context, err *gin.Error, extra interface{}) {
 			HttpStatus: c.Writer.Status(),
 			Code:       c.Writer.Status() * 100, // unknown code,eg: 500 --> 50000
 			Tip: tip.Tip{
-				language.English: err.Error(),
+				language.English.String(): err.Error(),
 			},
 		}
 	}

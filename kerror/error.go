@@ -7,6 +7,11 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/si9ma/KillOJ-common/utils"
+
+	"github.com/si9ma/KillOJ-common/log"
+	"go.uber.org/zap"
+
 	"github.com/si9ma/KillOJ-common/tip"
 )
 
@@ -23,11 +28,19 @@ type ErrResponse struct {
 
 var (
 	// 400xx : bad request
-	BadRequestGeneral = ErrResponse{http.StatusBadRequest, 40000, tip.BadRequestGeneralTip, nil}
-	ArgValidateFail   = ErrResponse{http.StatusBadRequest, 40001, tip.ArgValidateFailTip, nil}
+	ErrBadRequestGeneral = ErrResponse{http.StatusBadRequest, 40000, tip.BadRequestGeneralTip, nil}
+	ErrArgValidateFail   = ErrResponse{http.StatusBadRequest, 40001, tip.ArgValidateFailTip, nil}
+	ErrNotExist          = ErrResponse{http.StatusBadRequest, 40002, tip.NotExistTip, nil}
+	ErrAlreadyExist      = ErrResponse{http.StatusBadRequest, 40003, tip.AlreadyExistTip, nil}
+	// same as ErrAlreadyExist, but tip is different
+	ErrUserAlreadyExistInOrg = ErrResponse{http.StatusBadRequest, 40003, tip.UserAlreadyExistInOrgTip, nil}
+
+	// 401xx:
+	ErrUnauthorizedGeneral = ErrResponse{http.StatusUnauthorized, 40100, tip.UnauthorizedGeneralTip, nil}
+	ErrUserNotExist        = ErrResponse{http.StatusUnauthorized, 40101, tip.UserNotExistTip, nil}
 
 	// 500xx: Internal Server Error
-	InternalServerErrorGeneral = ErrResponse{http.StatusInternalServerError, 50000, tip.InternalServerErrorTip, nil}
+	ErrInternalServerErrorGeneral = ErrResponse{http.StatusInternalServerError, 50000, tip.InternalServerErrorTip, nil}
 )
 
 func (r ErrResponse) MarshalJSON() ([]byte, error) {
@@ -51,7 +64,27 @@ func (r ErrResponse) MarshalJSON() ([]byte, error) {
 
 // set Extra
 func (r ErrResponse) With(Extra interface{}) ErrResponse {
-	res := r
-	res.Extra = Extra
-	return res
+	n := ErrResponse{}
+
+	// deep copy
+	if err := utils.DeepCopy(&n, &r); err != nil {
+		log.Bg().Error("deep copy ErrResponse fail", zap.Error(err))
+	}
+
+	n.Extra = Extra
+	return n
+}
+
+func (r ErrResponse) WithArgs(args ...interface{}) ErrResponse {
+	n := ErrResponse{}
+
+	// deep copy
+	if err := utils.DeepCopy(&n, &r); err != nil {
+		log.Bg().Error("deep copy ErrResponse fail", zap.Error(err))
+	}
+
+	for k, v := range r.Tip {
+		n.Tip[k] = fmt.Sprintf(v, args...)
+	}
+	return n
 }
