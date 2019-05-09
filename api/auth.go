@@ -4,6 +4,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/si9ma/KillOJ-backend/kerror"
+
 	"gopkg.in/hlandau/passlib.v1"
 
 	"github.com/si9ma/KillOJ-common/utils"
@@ -57,7 +59,7 @@ func SetupAuth(r *gin.Engine) {
 		IdentityHandler: func(c *gin.Context) interface{} {
 			claims := jwt.ExtractClaims(c)
 			return &model.User{
-				ID: claims["id"].(int),
+				ID: claims[identityKey].(int),
 			}
 		},
 		Authenticator: authenticate,
@@ -66,8 +68,10 @@ func SetupAuth(r *gin.Engine) {
 		},
 		Unauthorized: func(c *gin.Context, code int, message string) {
 			c.JSON(code, gin.H{
-				"code":    code,
-				"message": message,
+				"error": map[string]interface{}{
+					"code":    kerror.ErrUnauthorizedGeneral.Code,
+					"message": message,
+				},
 			})
 		},
 		// TokenLookup is a string in the form of "<source>:<name>" that is used
