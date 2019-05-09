@@ -2,6 +2,9 @@
 # Created by https://www.gitignore.io/api/go,linux,jetbrains+all
 # Edit at https://www.gitignore.io/?templates=go,linux,jetbrains+all
 
+# log file
+*.log
+
 ### Go ###
 # Binaries for programs and plugins
 *.exe
