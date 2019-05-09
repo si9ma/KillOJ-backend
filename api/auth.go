@@ -1,7 +1,20 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
+
+	"github.com/si9ma/KillOJ-common/tip"
+
+	"github.com/si9ma/KillOJ-backend/kerror"
+
+	"github.com/si9ma/KillOJ-backend/gbl"
+
+	"github.com/si9ma/KillOJ-common/log"
+	"go.uber.org/zap"
+
+	otgrom "github.com/smacker/opentracing-gorm"
+	"gopkg.in/hlandau/passlib.v1"
 
 	"github.com/gin-gonic/gin"
 	"github.com/si9ma/KillOJ-common/model"
@@ -14,11 +27,75 @@ func SetupAuthRouter(r *gin.Engine) {
 }
 
 func Signup(c *gin.Context) {
+	var err error
+	ctx := c.Request.Context()
+	db := otgrom.SetSpanToGorm(ctx, gbl.DB)
+
 	user := model.User{}
 	if err := c.ShouldBind(&user); err != nil {
 		_ = c.Error(err).SetType(gin.ErrorTypeBind)
 		return
 	}
 
+	// validate argument
+	if user.NoInOrganization != "" && user.Organization == "" {
+		log.For(ctx).Error("organization should not nil when no_in_organization is not nil",
+			zap.String("NoInOrganization", user.NoInOrganization))
+		fields := map[string]string{
+			"no_in_organization": tip.OrgShouldExistWhenNoExistTip.String(),
+		}
+		_ = c.Error(kerror.EmptyError).SetType(gin.ErrorTypePublic).SetMeta(kerror.ArgValidateFail.With(fields))
+		return
+	}
+
+	// Organization and NoInOrganization must unique
+	if user.NoInOrganization != "" && user.Organization != "" {
+		tmpUser := model.User{}
+		if !db.Where("organization = ? AND no_in_organization = ?",
+			user.Organization, user.NoInOrganization).First(&tmpUser).RecordNotFound() {
+
+			log.For(ctx).Error("NoInOrganization already exist",
+				zap.String("NoInOrganization", user.NoInOrganization),
+				zap.String("organization", user.Organization))
+			err := fmt.Errorf(tip.UserAlreadyExistInOrgTip.String(), user.NoInOrganization, user.Organization)
+			_ = c.Error(err).SetType(gin.ErrorTypePublic)
+			c.Status(http.StatusBadRequest)
+			return
+		}
+	}
+
+	// email should unique
+	tmpUser := model.User{}
+	if !db.Where("email = ?",
+		user.Email).First(&tmpUser).RecordNotFound() {
+
+		log.For(ctx).Error("email already exist", zap.String("email", user.Email))
+		err := fmt.Errorf(tip.AlreadyExistTip.String(), user.Email)
+		_ = c.Error(err).SetType(gin.ErrorTypePublic)
+		c.Status(http.StatusBadRequest)
+		return
+	}
+
+	// encrypt password
+	if user.EncryptedPasswd, err = passlib.Hash(user.Passwd); err != nil {
+		log.For(ctx).Error("encrypt password fail", zap.Error(err))
+		_ = c.Error(err).SetType(gin.ErrorTypePrivate)
+		c.Status(http.StatusInternalServerError)
+		return
+	}
+	log.For(ctx).Info("encrypt password success")
+
+	// save
+	if err := db.Create(&user).Error; err != nil {
+		log.For(ctx).Error("create user fail", zap.Error(err))
+		_ = c.Error(err).SetType(gin.ErrorTypePublic)
+		c.Status(http.StatusInternalServerError)
+		return
+	}
+	log.For(ctx).Info("create user success", zap.Int("userId", user.ID))
+
+	// user password should not return,
+	// clear user password in user struct,
+	user.Passwd = ""
 	c.JSON(http.StatusOK, user)
 }

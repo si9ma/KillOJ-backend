@@ -2,7 +2,8 @@ package middleware
 
 import (
 	"fmt"
-	"net/http"
+
+	"golang.org/x/text/language"
 
 	"go.uber.org/zap"
 
@@ -53,7 +54,7 @@ func Errors() gin.HandlerFunc {
 				case gin.ErrorTypePublic:
 					// Only output public errors if nothing has been written yet
 					if !c.Writer.Written() {
-						c.JSON(c.Writer.Status(), gin.H{"error": generateErrResponse(c, e)})
+						writeResponse(c, e, nil)
 					}
 				case gin.ErrorTypeBind:
 					errs := e.Err.(validator.ValidationErrors)
@@ -64,47 +65,38 @@ func Errors() gin.HandlerFunc {
 						list[field] = validationErrorToText(err)
 					}
 
-					// Make sure we maintain the preset response status
-					status := http.StatusBadRequest
-					if c.Writer.Status() != http.StatusOK {
-						status = c.Writer.Status()
-					}
-
-					c.JSON(status, gin.H{
-						"error": map[string]interface{}{
-							"code":    kerror.ArgValidateFail,
-							"message": tip.ArgValidateFailTip.String(),
-							"errors":  list,
-						},
-					})
+					writeResponse(c, e, list)
 				}
 
 			}
 
 			// If there was no public or bind error, display default 500 message
 			if !c.Writer.Written() {
-				c.JSON(http.StatusInternalServerError,
-					gin.H{
-						"error": map[string]interface{}{
-							"code":    kerror.InternalServerErrorGeneral,
-							"message": tip.InternalServerErrorTip.String(),
-						},
-					},
-				)
+				e := &gin.Error{}
+				e = e.SetMeta(kerror.InternalServerErrorGeneral)
+				writeResponse(c, e, nil)
 			}
 
 		}
 	}
 }
 
-func generateErrResponse(c *gin.Context, err *gin.Error) map[string]interface{} {
-	res := make(map[string]interface{})
-	code, ok := err.Meta.(kerror.ResponseErrno)
+func writeResponse(c *gin.Context, err *gin.Error, extra interface{}) {
+	res, ok := err.Meta.(kerror.ErrResponse)
 	if !ok {
-		code = kerror.ResponseErrno(c.Writer.Status() * 100) // unknown code, eg: 401 --> 40100
+		res = kerror.ErrResponse{
+			HttpStatus: c.Writer.Status(),
+			Code:       c.Writer.Status() * 100, // unknown code,eg: 500 --> 50000
+			Tip: tip.Tip{
+				language.English: err.Error(),
+			},
+		}
 	}
 
-	res["code"] = code
-	res["message"] = err.Error()
-	return res
+	// write extra only when the extra of res is nil
+	if res.Extra == nil {
+		res.Extra = extra
+	}
+
+	c.JSON(res.HttpStatus, gin.H{"error": res})
 }
