@@ -42,7 +42,7 @@ func init() {
 
 		// setup Router
 		r := setupRouter()
-		if err := r.Run(cfg.App.Host); err != nil {
+		if err := r.Run(cfg.App.Addr()); err != nil {
 			log.Bg().Fatal("run backend fail", zap.Error(err))
 			return err
 		}

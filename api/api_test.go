@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/si9ma/KillOJ-backend/config"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -12,11 +14,15 @@ func TestAPI(t *testing.T) {
 	if err != nil {
 		t.Fatal("setup router fail", err)
 	}
+	cfg := config.AppConfig{
+		Port: "8889",
+	}
 
 	SetupAuth(r)
+	Setup3rdAuth(r, cfg)
 
 	// Ping test
-	r.GET("/auth/ping", func(c *gin.Context) {
+	r.GET("/ping", func(c *gin.Context) {
 		c.String(http.StatusOK, "pong")
 	})
 

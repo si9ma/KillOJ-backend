@@ -15,4 +15,9 @@ type Config struct {
 
 type AppConfig struct {
 	Host string `yaml:"host"`
+	Port string `yaml:"port"`
+}
+
+func (a AppConfig) Addr() string {
+	return a.Host + ":" + a.Port
 }

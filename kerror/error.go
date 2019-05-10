@@ -38,6 +38,10 @@ var (
 	// 401xx:
 	ErrUnauthorizedGeneral = ErrResponse{http.StatusUnauthorized, 40100, tip.UnauthorizedGeneralTip, nil}
 	ErrUserNotExist        = ErrResponse{http.StatusUnauthorized, 40101, tip.UserNotExistTip, nil}
+	ErrPasswordWrong       = ErrResponse{http.StatusUnauthorized, 40102, tip.PasswordWrong, nil}
+	Err3rdAuthFail         = ErrResponse{http.StatusUnauthorized, 40103, tip.ThirdAuthFailTip, nil}
+	ErrNoSignUp            = ErrResponse{http.StatusUnauthorized, 40104, tip.NoSignupTip, nil}
+	ErrNotSupportProvider  = ErrResponse{http.StatusUnauthorized, 40105, tip.NotSupportProviderTip, nil}
 
 	// 500xx: Internal Server Error
 	ErrInternalServerErrorGeneral = ErrResponse{http.StatusInternalServerError, 50000, tip.InternalServerErrorTip, nil}

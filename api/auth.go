@@ -1,8 +1,12 @@
 package api
 
 import (
+	"net/http"
 	"os"
 	"time"
+
+	"github.com/markbates/goth/gothic"
+	"github.com/si9ma/KillOJ-common/mysql"
 
 	"github.com/si9ma/KillOJ-backend/kerror"
 
@@ -29,12 +33,16 @@ type login struct {
 	Password string `json:"password" binding:"required"`
 }
 
+const NoUseGinJwtError = "NoUseGinJwtError"
+
 var (
-	authGroup   *gin.RouterGroup
-	identityKey = "id"
+	authGroup     *gin.RouterGroup      // auth group
+	jwtMiddleware *jwt.GinJWTMiddleware // jwt middleware
+	identityKey   = "id"
 )
 
 func SetupAuth(r *gin.Engine) {
+	var err error
 	jwtSecret := os.Getenv(constants.EnvJWTSecret)
 	if jwtSecret == "" {
 		log.Bg().Fatal("Please Define environment", zap.String("env", constants.EnvJWTSecret))
@@ -42,7 +50,7 @@ func SetupAuth(r *gin.Engine) {
 	}
 
 	// the jwt middleware
-	authMiddleware, err := jwt.New(&jwt.GinJWTMiddleware{
+	jwtMiddleware, err = jwt.New(&jwt.GinJWTMiddleware{
 		Realm:       constants.ProjectName,
 		Key:         []byte(jwtSecret),
 		Timeout:     time.Hour,
@@ -67,6 +75,22 @@ func SetupAuth(r *gin.Engine) {
 			return true
 		},
 		Unauthorized: func(c *gin.Context, code int, message string) {
+			ctx := c.Request.Context()
+
+			// clear goauth session
+			if err := gothic.Logout(c.Writer, c.Request); err != nil {
+				log.Bg().Error("goauth logout fail", zap.Error(err))
+			}
+
+			if val, ok := c.Get(NoUseGinJwtError); ok {
+				if is, ok := val.(bool); ok && is {
+					// use custom error handler
+					log.For(ctx).Info("don't use gin-jwt error")
+					return
+				}
+			}
+
+			// use gin-jwt error
 			c.JSON(code, gin.H{
 				"error": map[string]interface{}{
 					"code":    kerror.ErrUnauthorizedGeneral.Code,
@@ -99,16 +123,37 @@ func SetupAuth(r *gin.Engine) {
 		return
 	}
 
-	r.POST("/login", authMiddleware.LoginHandler)
+	r.POST("/login", jwtMiddleware.LoginHandler)
 
-	authGroup = r.Group("/auth")
+	// auth group
+	authGroup = r.Group("")
+	authGroup.Use(jwtMiddleware.MiddlewareFunc())
+
+	authGroup.GET("/logout", func(c *gin.Context) {
+		if err := gothic.Logout(c.Writer, c.Request); err != nil {
+			log.Bg().Error("goauth logout fail", zap.Error(err))
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"result": "success",
+		})
+	})
 
 	// Refresh time can be longer than token timeout
-	authGroup.GET("/refresh_token", authMiddleware.RefreshHandler)
-	authGroup.Use(authMiddleware.MiddlewareFunc())
+	authGroup.GET("/refresh_token", jwtMiddleware.RefreshHandler)
 }
 
 func authenticate(c *gin.Context) (interface{}, error) {
+	c.Set(NoUseGinJwtError, true) // use custom error handle
+
+	if c.Request.RequestURI == "/login" {
+		// password authenticate
+		return passwdAuthenticate(c)
+	} else {
+		return thirdAuthenticate(c)
+	}
+}
+
+func passwdAuthenticate(c *gin.Context) (interface{}, error) {
 	var (
 		loginVals login
 		err       error
@@ -125,8 +170,7 @@ func authenticate(c *gin.Context) (interface{}, error) {
 			zap.String("username", loginVals.UserName),
 			zap.String("password", loginVals.Password))
 
-		// use gin-jwt error
-		//_ = c.Error(err).SetType(gin.ErrorTypeBind)
+		_ = c.Error(err).SetType(gin.ErrorTypeBind)
 		return "", jwt.ErrMissingLoginValues
 	}
 	userName := loginVals.UserName
@@ -141,13 +185,25 @@ func authenticate(c *gin.Context) (interface{}, error) {
 		// username is nick name
 		err = db.Where("nick_name = ?", loginVals.UserName).First(&user).Error
 	}
-	if err != nil {
+	if hasErr, isNotFound := mysql.ApplyDBError(c, err); isNotFound {
+		log.For(ctx).Error("user not exist", zap.String("username", loginVals.UserName))
+
+		_ = c.Error(err).SetType(gin.ErrorTypePublic).
+			SetMeta(kerror.ErrUserNotExist.WithArgs(loginVals.UserName))
+
+		return "", jwt.ErrFailedAuthentication
+	} else if hasErr {
 		log.For(ctx).Error("query user fail", zap.String("username", loginVals.UserName))
 		return "", jwt.ErrFailedAuthentication
 	}
 
+	//  verify password
 	if newVal, err := passlib.Verify(password, user.EncryptedPasswd); err != nil {
 		log.For(ctx).Error("verify password fail", zap.String("username", loginVals.UserName))
+
+		_ = c.Error(err).SetType(gin.ErrorTypePublic).
+			SetMeta(kerror.ErrPasswordWrong)
+
 		return "", jwt.ErrFailedAuthentication
 	} else {
 		// The context has decided, as per its policy, that
@@ -160,8 +216,9 @@ func authenticate(c *gin.Context) (interface{}, error) {
 				log.For(ctx).Error("renew password fail", zap.Error(err),
 					zap.Int("id", user.ID))
 
-				// todo There may be a bug here
-				//return "",jwt.ErrFailedAuthentication
+				_ = c.Error(err).SetType(gin.ErrorTypePrivate)
+
+				return "", jwt.ErrFailedAuthentication
 			}
 			log.For(ctx).Info("renew password success", zap.Error(err),
 				zap.Int("id", user.ID))
