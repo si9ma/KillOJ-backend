@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/si9ma/KillOJ-common/utils"
 
@@ -28,12 +29,11 @@ type ErrResponse struct {
 
 var (
 	// 400xx : bad request
-	ErrBadRequestGeneral = ErrResponse{http.StatusBadRequest, 40000, tip.BadRequestGeneralTip, nil}
-	ErrArgValidateFail   = ErrResponse{http.StatusBadRequest, 40001, tip.ArgValidateFailTip, nil}
-	ErrNotExist          = ErrResponse{http.StatusBadRequest, 40002, tip.NotExistTip, nil}
-	ErrAlreadyExist      = ErrResponse{http.StatusBadRequest, 40003, tip.AlreadyExistTip, nil}
-	// same as ErrAlreadyExist, but tip is different
-	ErrUserAlreadyExistInOrg = ErrResponse{http.StatusBadRequest, 40003, tip.UserAlreadyExistInOrgTip, nil}
+	ErrBadRequestGeneral    = ErrResponse{http.StatusBadRequest, 40000, tip.BadRequestGeneralTip, nil}
+	ErrArgValidateFail      = ErrResponse{http.StatusBadRequest, 40001, tip.ArgValidateFailTip, nil}
+	ErrNotExist             = ErrResponse{http.StatusBadRequest, 40002, tip.NotExistTip, nil}
+	ErrAlreadyExist         = ErrResponse{http.StatusBadRequest, 40003, tip.AlreadyExistTip, nil}
+	ErrShouldBothExistOrNot = ErrResponse{http.StatusBadRequest, 40004, tip.ShouldBothExistOrNotTip, nil}
 
 	// 401xx:
 	ErrUnauthorizedGeneral = ErrResponse{http.StatusUnauthorized, 40100, tip.UnauthorizedGeneralTip, nil}
@@ -88,7 +88,11 @@ func (r ErrResponse) WithArgs(args ...interface{}) ErrResponse {
 	}
 
 	for k, v := range r.Tip {
-		n.Tip[k] = fmt.Sprintf(v, args...)
+		str := fmt.Sprintf(v, args...)
+		// remove map[ in of output
+		// todo There may be a bug hereo
+		str = strings.ReplaceAll(str, "map[", "[")
+		n.Tip[k] = str
 	}
 	return n
 }

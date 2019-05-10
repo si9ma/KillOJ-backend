@@ -127,8 +127,13 @@ func thirdAuthenticate(c *gin.Context) (interface{}, error) {
 		if hasErr, isNotFound := mysql.ApplyDBError(c, err); isNotFound {
 			log.For(ctx).Error("user not signup", zap.String("provider", provider))
 
+			resp := authUserInfo{
+				Provider: u.Provider,
+				Name:     u.Name,
+				UserID:   u.UserID,
+			}
 			_ = c.Error(kerror.EmptyError).SetType(gin.ErrorTypePublic).
-				SetMeta(kerror.ErrNoSignUp)
+				SetMeta(kerror.ErrNoSignUp.With(resp))
 			return "", jwt.ErrFailedAuthentication
 		} else if hasErr {
 			log.For(ctx).Error("query user by github_user_id fail", zap.String("github_user_id", u.UserID))
@@ -138,4 +143,10 @@ func thirdAuthenticate(c *gin.Context) (interface{}, error) {
 	}
 
 	return "", jwt.ErrFailedAuthentication
+}
+
+type authUserInfo struct {
+	Provider string `json:"provider"`
+	Name     string `json:"name"`
+	UserID   string `json:"userID"`
 }

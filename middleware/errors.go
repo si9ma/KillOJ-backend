@@ -64,6 +64,7 @@ func Errors() gin.HandlerFunc {
 						field := utils.Lower1stCharacter(err.Field)
 						list[field] = validationErrorToText(err)
 					}
+					_ = e.SetMeta(kerror.ErrArgValidateFail)
 
 					writeResponse(c, e, list)
 				}

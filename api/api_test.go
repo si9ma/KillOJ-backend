@@ -20,13 +20,13 @@ func TestAPI(t *testing.T) {
 
 	SetupAuth(r)
 	Setup3rdAuth(r, cfg)
+	SetupUser(r)
 
 	// Ping test
 	r.GET("/ping", func(c *gin.Context) {
 		c.String(http.StatusOK, "pong")
 	})
 
-	r.POST("/signup", Signup)
 	if err := r.Run(":8889"); err != nil {
 		t.Fatal(err)
 	}

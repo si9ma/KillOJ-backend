@@ -36,9 +36,9 @@ type login struct {
 const NoUseGinJwtError = "NoUseGinJwtError"
 
 var (
-	authGroup     *gin.RouterGroup      // auth group
-	jwtMiddleware *jwt.GinJWTMiddleware // jwt middleware
-	identityKey   = "id"
+	authGroup      *gin.RouterGroup      // auth group
+	jwtMiddleware  *jwt.GinJWTMiddleware // jwt middleware
+	JwtIdentityKey = "id"
 )
 
 func SetupAuth(r *gin.Engine) {
@@ -55,19 +55,20 @@ func SetupAuth(r *gin.Engine) {
 		Key:         []byte(jwtSecret),
 		Timeout:     time.Hour,
 		MaxRefresh:  time.Hour * 24 * 7, // 7 day
-		IdentityKey: identityKey,
+		IdentityKey: JwtIdentityKey,
 		PayloadFunc: func(data interface{}) jwt.MapClaims {
-			if v, ok := data.(*model.User); ok {
+			if v, ok := data.(model.User); ok {
 				return jwt.MapClaims{
-					identityKey: v.ID,
+					JwtIdentityKey: v.ID,
 				}
 			}
 			return jwt.MapClaims{}
 		},
 		IdentityHandler: func(c *gin.Context) interface{} {
 			claims := jwt.ExtractClaims(c)
-			return &model.User{
-				ID: claims[identityKey].(int),
+			userId := claims[JwtIdentityKey].(float64)
+			return model.User{
+				ID: int(userId),
 			}
 		},
 		Authenticator: authenticate,
@@ -227,4 +228,10 @@ func passwdAuthenticate(c *gin.Context) (interface{}, error) {
 
 	log.For(ctx).Info("authenticate user success", zap.String("username", loginVals.UserName))
 	return user, nil
+}
+
+func GetUserIDFromJWT(c *gin.Context) int {
+	// get id from jwt
+	u, _ := c.Get(JwtIdentityKey)
+	return u.(model.User).ID
 }
