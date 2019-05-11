@@ -54,7 +54,7 @@ func useGoAuth(r *gin.Engine, cfg config.AppConfig) {
 	gothic.Store = store
 
 	goth.UseProviders(
-		github.New(os.Getenv(constants.EnvGithubAuthKey), os.Getenv(constants.EnvGithubAuthSecret), utils.GetUrlRoot(cfg.Port)+"/auth/github/callback"), // github
+		github.New(os.Getenv(constants.EnvGithubAuthKey), os.Getenv(constants.EnvGithubAuthSecret), utils.GetUrlRoot(cfg.Port)+"/auth3rd/github/callback"), // github
 	)
 	r.GET("/auth3rd/:provider/callback", jwtMiddleware.LoginHandler) // integration 3rd auth to jwt
 	r.GET("/auth3rd/:provider", func(c *gin.Context) {
@@ -120,7 +120,7 @@ func thirdAuthenticate(c *gin.Context) (interface{}, error) {
 	if provider == "github" {
 		err := db.Where("github_user_id = ?", u.UserID).First(&user).Error
 		if res := mysql.ErrorHandleAndLog(c, err, false,
-			"get user by github_user_id", u.UserID); res == mysql.Success {
+			"get user by github_user_id", u.UserID); res == mysql.NotFound {
 			log.For(ctx).Error("user not signup", zap.String("provider", provider))
 
 			resp := authUserInfo{

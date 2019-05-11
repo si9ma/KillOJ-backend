@@ -199,7 +199,7 @@ func passwdAuthenticate(c *gin.Context) (interface{}, error) {
 		err = db.Where("nick_name = ?", loginVals.UserName).First(&user).Error
 	}
 	if res := mysql.ErrorHandleAndLog(c, err, false,
-		"get user by username(email/nick_name)", loginVals.UserName); res == mysql.Success {
+		"get user by username(email/nick_name)", loginVals.UserName); res == mysql.NotFound {
 		log.For(ctx).Error("user not exist", zap.String("username", loginVals.UserName))
 
 		_ = c.Error(err).SetType(gin.ErrorTypePublic).

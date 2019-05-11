@@ -1,11 +1,10 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/si9ma/KillOJ-backend/wrap"
-
-	"github.com/si9ma/KillOJ-backend/dao"
 
 	"github.com/si9ma/KillOJ-backend/middleware"
 
@@ -43,7 +42,7 @@ func SetupUser(r *gin.Engine) {
 	r.POST(SignUpPath, UserInfoEdit)
 
 	// should auth
-	auth.AuthGroup.POST(ProfilePath, UserInfoEdit)
+	auth.AuthGroup.PUT(ProfilePath, UserInfoEdit)
 	auth.AuthGroup.GET(ProfilePath, GetUserInfo)
 	auth.AuthGroup.GET("/user/:id", GetOtherUserInfo)
 	auth.AuthGroup.PUT("/admin/maintainers/:id",
@@ -63,7 +62,7 @@ func extractUser(c *gin.Context) (*model.User, bool) {
 	// validate argument password,
 	// password should't empty when sign up
 	if c.Request.RequestURI == SignUpPath {
-		if user.Passwd == "" {
+		if user.Password == "" {
 			log.For(ctx).Error("password shouldn't empty when signup")
 
 			// set error
@@ -73,6 +72,17 @@ func extractUser(c *gin.Context) (*model.User, bool) {
 			_ = c.Error(kerror.EmptyError).SetType(gin.ErrorTypePublic).SetMeta(kerror.ErrArgValidateFail.With(fields))
 			return nil, false
 		}
+	}
+	// if password not empty, min length is 6
+	if user.Password != "" && len(user.Password) < 6 {
+		log.For(ctx).Error("password min length is 6")
+
+		// set error
+		fields := map[string]string{
+			"password": fmt.Sprintf(tip.ValidateMinTip.String(), "password", 6),
+		}
+		_ = c.Error(kerror.EmptyError).SetType(gin.ErrorTypePublic).SetMeta(kerror.ErrArgValidateFail.With(fields))
+		return nil, false
 	}
 
 	// validate argument organization
@@ -171,8 +181,8 @@ func UserInfoEdit(c *gin.Context) {
 
 	// encrypt password,
 	// only when password not empty
-	if newUser.Passwd != "" {
-		if newUser.EncryptedPasswd, err = passlib.Hash(newUser.Passwd); err != nil {
+	if newUser.Password != "" {
+		if newUser.EncryptedPasswd, err = passlib.Hash(newUser.Password); err != nil {
 			log.For(ctx).Error("encrypt password fail", zap.Error(err))
 			_ = c.Error(err).SetType(gin.ErrorTypePrivate)
 			c.Status(http.StatusInternalServerError)
@@ -211,7 +221,7 @@ func UserInfoEdit(c *gin.Context) {
 
 	// newUser password and github_user_id should not return,
 	// clear newUser password and github_user_id in newUser struct,
-	newUser.Passwd = ""
+	newUser.Password = ""
 	newUser.GithubUserID = ""
 	c.JSON(http.StatusOK, newUser)
 }
@@ -299,7 +309,8 @@ func UpdateMaintainer(c *gin.Context) {
 	}
 
 	// if user not exist, return
-	if _, ok := dao.IsUserExist(c, uriArg.ID); !ok {
+	err = db.First(&model.User{}).Error
+	if mysql.ErrorHandleAndLog(c, err, true, "get user", uriArg.ID) != mysql.Success {
 		return
 	}
 
