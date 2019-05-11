@@ -1,12 +1,11 @@
 package api
 
-//
 //import (
+//	"github.com/si9ma/KillOJ-backend/dao"
 //	"net/http"
 //
 //	"github.com/si9ma/KillOJ-common/log"
 //	"github.com/si9ma/KillOJ-common/mysql"
-//	"go.uber.org/zap"
 //
 //	"github.com/si9ma/KillOJ-backend/wrap"
 //
@@ -36,7 +35,7 @@ package api
 //	arg := PageArg{}
 //
 //	// bind
-//	if !wrap.ShouldBind(c, &arg) {
+//	if !wrap.ShouldBind(c, &arg, false) {
 //		return
 //	}
 //	offset := (arg.Page - 1) * arg.PageSize
@@ -48,8 +47,10 @@ package api
 //	} else {
 //		err = db.Model(&model.Catalog{}).Offset(offset).Limit(arg.PageSize).Find(&catalogs).Error
 //	}
-//	if hasErr, _ := mysql.ApplyDBError(c, err); hasErr {
-//		log.For(ctx).Error("get all catalogs fail", zap.Error(err))
+//
+//	// error handle
+//	if mysql.ErrorHandleAndLog(c,err,true,
+//		"get catalogs",nil) != mysql.Success {
 //		return
 //	}
 //
@@ -60,9 +61,15 @@ package api
 //func GetCatalog(c *gin.Context) {
 //	ctx := c.Request.Context()
 //	db := otgrom.SetSpanToGorm(ctx, gbl.DB)
+//	arg := QueryArg{}
 //
-//	id := ps.ByName("id")
+//	// bind
+//	if !wrap.ShouldBind(c, &arg, true) {
+//		return
+//	}
+//
 //	catalog := &model.Catalog{}
+//	if catalog,ok := dao.IsUserExist()
 //	if DB.First(catalog, id).Error != nil {
 //		http.NotFound(w, r)
 //		return

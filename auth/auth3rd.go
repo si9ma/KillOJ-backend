@@ -119,7 +119,8 @@ func thirdAuthenticate(c *gin.Context) (interface{}, error) {
 	user := model.User{}
 	if provider == "github" {
 		err := db.Where("github_user_id = ?", u.UserID).First(&user).Error
-		if hasErr, isNotFound := mysql.ApplyDBError(c, err); isNotFound {
+		if res := mysql.ErrorHandleAndLog(c, err, false,
+			"get user by github_user_id", u.UserID); res == mysql.Success {
 			log.For(ctx).Error("user not signup", zap.String("provider", provider))
 
 			resp := authUserInfo{
@@ -130,8 +131,7 @@ func thirdAuthenticate(c *gin.Context) (interface{}, error) {
 			_ = c.Error(kerror.EmptyError).SetType(gin.ErrorTypePublic).
 				SetMeta(kerror.ErrNoSignUp.With(resp))
 			return "", jwt.ErrFailedAuthentication
-		} else if hasErr {
-			log.For(ctx).Error("query user by github_user_id fail", zap.String("github_user_id", u.UserID))
+		} else if res != mysql.Success {
 			return "", jwt.ErrFailedAuthentication
 		}
 		return user, nil

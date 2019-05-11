@@ -198,15 +198,15 @@ func passwdAuthenticate(c *gin.Context) (interface{}, error) {
 		// username is nick name
 		err = db.Where("nick_name = ?", loginVals.UserName).First(&user).Error
 	}
-	if hasErr, isNotFound := mysql.ApplyDBError(c, err); isNotFound {
+	if res := mysql.ErrorHandleAndLog(c, err, false,
+		"get user by username(email/nick_name)", loginVals.UserName); res == mysql.Success {
 		log.For(ctx).Error("user not exist", zap.String("username", loginVals.UserName))
 
 		_ = c.Error(err).SetType(gin.ErrorTypePublic).
 			SetMeta(kerror.ErrUserNotExist.WithArgs(loginVals.UserName))
 
 		return "", jwt.ErrFailedAuthentication
-	} else if hasErr {
-		log.For(ctx).Error("query user fail", zap.String("username", loginVals.UserName))
+	} else if res != mysql.Success {
 		return "", jwt.ErrFailedAuthentication
 	}
 

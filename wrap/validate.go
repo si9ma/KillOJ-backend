@@ -2,9 +2,6 @@ package wrap
 
 import (
 	"net/http"
-	"strconv"
-
-	"github.com/si9ma/KillOJ-backend/kerror"
 
 	"go.uber.org/zap"
 
@@ -38,21 +35,4 @@ func ShouldBind(c *gin.Context, obj interface{}, BindUri bool) (ok bool) {
 	}
 
 	return true
-}
-
-func ExtractIntFromParam(c *gin.Context, key string) (int, bool) {
-	ctx := c.Request.Context()
-
-	// parse id
-	valStr := c.Param(key)
-	val, err := strconv.Atoi(valStr)
-	if err != nil {
-		log.For(ctx).Error("parse params fail", zap.Error(err), zap.String("key", key))
-
-		_ = c.Error(err).SetType(gin.ErrorTypePublic).
-			SetMeta(kerror.ErrNotFoundGeneral)
-		return val, false
-	}
-
-	return val, true
 }

@@ -115,8 +115,8 @@ func UserInfoEdit(c *gin.Context) {
 	if c.Request.RequestURI == ProfilePath {
 		userID := auth.GetUserFromJWT(c).ID // get ID from jwt
 		err := db.First(&oldUser, userID).Error
-		if hasErr, _ := mysql.ApplyDBError(c, err); hasErr {
-			log.For(ctx).Error("query newUser fail", zap.Error(err), zap.Int("userId", userID))
+		if mysql.ErrorHandleAndLog(c, err, true,
+			"query user", userID) != mysql.Success {
 			return
 		}
 	}
@@ -223,8 +223,8 @@ func GetUserInfo(c *gin.Context) {
 	user := model.User{}
 
 	err := db.First(&user, userID).Error
-	if hasErr, _ := mysql.ApplyDBError(c, err); hasErr {
-		log.For(ctx).Error("get user info fail", zap.Error(err), zap.Int("userId", userID))
+	if mysql.ErrorHandleAndLog(c, err, true,
+		"get user info", userID) != mysql.Success {
 		return
 	}
 
@@ -235,18 +235,17 @@ func GetUserInfo(c *gin.Context) {
 func GetOtherUserInfo(c *gin.Context) {
 	ctx := c.Request.Context()
 	arg := QueryArg{}
+	db := otgrom.SetSpanToGorm(ctx, gbl.DB)
 
-	// get params
+	// bind uri
 	if !wrap.ShouldBind(c, &arg, true) {
 		return
 	}
-	//userID, ok := wrap.ExtractIntFromParam(c, "id")
-	//if !ok {
-	//	return
-	//}
 
-	user, ok := dao.IsUserExist(c, arg.ID)
-	if !ok {
+	user := model.User{}
+	err := db.First(&user, arg.ID).Error
+	if mysql.ErrorHandleAndLog(c, err, true,
+		"get user info", arg.ID) != mysql.Success {
 		return
 	}
 
@@ -289,13 +288,13 @@ func UpdateMaintainer(c *gin.Context) {
 		return
 	}
 
-	// can't change your self type,
+	// can't change your self role,
 	// because you are administrator
 	if uriArg.ID == auth.GetUserFromJWT(c).ID {
-		log.For(ctx).Error("you can't change your self type", zap.Int("userId", uriArg.ID))
+		log.For(ctx).Error("you can't change your self role", zap.Int("userId", uriArg.ID))
 
 		_ = c.Error(kerror.EmptyError).SetType(gin.ErrorTypePublic).
-			SetMeta(kerror.ErrShouldNotUpdateSelf.WithArgs("type"))
+			SetMeta(kerror.ErrShouldNotUpdateSelf.WithArgs("role"))
 		return
 	}
 
@@ -306,18 +305,18 @@ func UpdateMaintainer(c *gin.Context) {
 
 	user := model.User{ID: uriArg.ID}
 	err = db.Model(&user).Update("role", arg.Role).Error
-	if hasErr, isNotFound := mysql.ApplyDBError(c, err); isNotFound {
+	if res := mysql.ErrorHandleAndLog(c, err, false,
+		"update maintainer role", uriArg.ID); res == mysql.NotFound {
 		log.For(ctx).Error("user not exist", zap.Error(err), zap.Int("userId", uriArg.ID))
 
 		_ = c.Error(err).SetType(gin.ErrorTypePublic).
 			SetMeta(kerror.ErrNotFound.WithArgs(uriArg.ID))
 		return
-	} else if hasErr {
-		log.For(ctx).Error("update user type fail", zap.Error(err), zap.Int("userid", uriArg.ID))
+	} else if res != mysql.Success {
 		return
 	}
 
-	log.For(ctx).Info("update maintainer type success", zap.Int("userId", user.ID))
+	log.For(ctx).Info("update maintainer role success", zap.Int("userId", user.ID))
 }
 
 func GetAllMaintainers(c *gin.Context) {
@@ -339,8 +338,7 @@ func GetAllMaintainers(c *gin.Context) {
 	} else {
 		err = db.Where("role = ?", auth.Maintainer).Offset(offset).Limit(arg.PageSize).Find(&users).Error
 	}
-	if hasErr, _ := mysql.ApplyDBError(c, err); hasErr {
-		log.For(ctx).Error("update user type fail", zap.Error(err))
+	if mysql.ErrorHandleAndLog(c, err, true, "get maintainers", nil) != mysql.Success {
 		return
 	}
 
