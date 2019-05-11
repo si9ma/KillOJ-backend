@@ -4,14 +4,14 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/si9ma/KillOJ-backend/api"
+
 	"github.com/opentracing-contrib/go-gin/ginhttp"
 	"github.com/opentracing/opentracing-go"
 	"github.com/si9ma/KillOJ-backend/gbl"
 	"github.com/si9ma/KillOJ-backend/middleware"
 	"github.com/si9ma/KillOJ-common/mysql"
 	"github.com/si9ma/KillOJ-common/tracing"
-
-	"github.com/si9ma/KillOJ-backend/api"
 
 	"github.com/gin-gonic/gin"
 	"github.com/si9ma/KillOJ-backend/auth"
@@ -29,7 +29,7 @@ func TestBackEnd(t *testing.T) {
 
 	auth.SetupAuth(r)
 	auth.Setup3rdAuth(r, cfg)
-	api.SetupUser(r)
+	api.Setup(r)
 
 	// Ping test
 	r.GET("/ping", func(c *gin.Context) {

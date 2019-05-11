@@ -200,9 +200,9 @@ func UserInfoEdit(c *gin.Context) {
 		newUser.GithubUserID = oldUser.GithubUserID
 
 		// update
-		if err := db.Model(&oldUser).Updates(newUser).Error; err != nil {
-			log.For(ctx).Error("update newUser fail", zap.Error(err))
-			_ = c.Error(err).SetType(gin.ErrorTypePrivate)
+		err := db.Model(&oldUser).Updates(newUser).Error
+		if mysql.ErrorHandleAndLog(c, err, true,
+			"update user", newUser.ID) != mysql.Success {
 			return
 		}
 		log.For(ctx).Info("update newUser success", zap.Int("userId", newUser.ID))
