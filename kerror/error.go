@@ -34,6 +34,7 @@ var (
 	ErrNotExist             = ErrResponse{http.StatusBadRequest, 40002, tip.NotExistTip, nil}
 	ErrAlreadyExist         = ErrResponse{http.StatusBadRequest, 40003, tip.AlreadyExistTip, nil}
 	ErrShouldBothExistOrNot = ErrResponse{http.StatusBadRequest, 40004, tip.ShouldBothExistOrNotTip, nil}
+	ErrShouldNotUpdateSelf  = ErrResponse{http.StatusBadRequest, 40005, tip.ShouldNotUpdateSelfTip, nil}
 
 	// 401xx:
 	ErrUnauthorizedGeneral = ErrResponse{http.StatusUnauthorized, 40100, tip.UnauthorizedGeneralTip, nil}
@@ -42,6 +43,13 @@ var (
 	Err3rdAuthFail         = ErrResponse{http.StatusUnauthorized, 40103, tip.ThirdAuthFailTip, nil}
 	ErrNoSignUp            = ErrResponse{http.StatusUnauthorized, 40104, tip.NoSignupTip, nil}
 	ErrNotSupportProvider  = ErrResponse{http.StatusUnauthorized, 40105, tip.NotSupportProviderTip, nil}
+
+	// 403xx : forbidden
+	ErrForbiddenGeneral = ErrResponse{http.StatusForbidden, 40300, tip.ForbiddenTip, nil}
+
+	// 404xx : not found
+	ErrNotFoundGeneral = ErrResponse{http.StatusForbidden, 40400, tip.NotFoundTip, nil}
+	ErrNotFound        = ErrResponse{http.StatusBadRequest, 40401, tip.NotExistTip, nil}
 
 	// 500xx: Internal Server Error
 	ErrInternalServerErrorGeneral = ErrResponse{http.StatusInternalServerError, 50000, tip.InternalServerErrorTip, nil}

@@ -1,4 +1,4 @@
-package api
+package auth
 
 import (
 	"net/http"
@@ -33,10 +33,20 @@ type login struct {
 	Password string `json:"password" binding:"required"`
 }
 
-const NoUseGinJwtError = "NoUseGinJwtError"
+const (
+	NoUseGinJwtError = "NoUseGinJwtError"
+)
+
+type Role int
+
+const (
+	Administrator = Role(iota)
+	Maintainer
+	Normal
+)
 
 var (
-	authGroup      *gin.RouterGroup      // auth group
+	AuthGroup      *gin.RouterGroup      // auth group
 	jwtMiddleware  *jwt.GinJWTMiddleware // jwt middleware
 	JwtIdentityKey = "id"
 )
@@ -60,15 +70,20 @@ func SetupAuth(r *gin.Engine) {
 			if v, ok := data.(model.User); ok {
 				return jwt.MapClaims{
 					JwtIdentityKey: v.ID,
+					"role":         v.Role,
 				}
 			}
 			return jwt.MapClaims{}
 		},
 		IdentityHandler: func(c *gin.Context) interface{} {
 			claims := jwt.ExtractClaims(c)
+
+			// todo There may be a bug here
 			userId := claims[JwtIdentityKey].(float64)
+			role := claims["role"].(float64)
 			return model.User{
-				ID: int(userId),
+				ID:   int(userId),
+				Role: int(role),
 			}
 		},
 		Authenticator: authenticate,
@@ -127,10 +142,10 @@ func SetupAuth(r *gin.Engine) {
 	r.POST("/login", jwtMiddleware.LoginHandler)
 
 	// auth group
-	authGroup = r.Group("")
-	authGroup.Use(jwtMiddleware.MiddlewareFunc())
+	AuthGroup = r.Group("")
+	AuthGroup.Use(jwtMiddleware.MiddlewareFunc())
 
-	authGroup.GET("/logout", func(c *gin.Context) {
+	AuthGroup.GET("/logout", func(c *gin.Context) {
 		if err := gothic.Logout(c.Writer, c.Request); err != nil {
 			log.Bg().Error("goauth logout fail", zap.Error(err))
 		}
@@ -140,7 +155,7 @@ func SetupAuth(r *gin.Engine) {
 	})
 
 	// Refresh time can be longer than token timeout
-	authGroup.GET("/refresh_token", jwtMiddleware.RefreshHandler)
+	AuthGroup.GET("/auth/refresh_token", jwtMiddleware.RefreshHandler)
 }
 
 func authenticate(c *gin.Context) (interface{}, error) {
@@ -230,8 +245,8 @@ func passwdAuthenticate(c *gin.Context) (interface{}, error) {
 	return user, nil
 }
 
-func GetUserIDFromJWT(c *gin.Context) int {
-	// get id from jwt
+func GetUserFromJWT(c *gin.Context) model.User {
+	// get user from jwt
 	u, _ := c.Get(JwtIdentityKey)
-	return u.(model.User).ID
+	return u.(model.User)
 }

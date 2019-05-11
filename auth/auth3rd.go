@@ -1,4 +1,4 @@
-package api
+package auth
 
 import (
 	"fmt"
@@ -30,11 +30,6 @@ import (
 
 var supportProvider = []string{"github"}
 
-type auth struct {
-	key    string
-	secret string
-}
-
 func Setup3rdAuth(r *gin.Engine, cfg config.AppConfig) {
 	// use goauth,
 	// repo : https://github.com/markbates/goth
@@ -61,8 +56,8 @@ func useGoAuth(r *gin.Engine, cfg config.AppConfig) {
 	goth.UseProviders(
 		github.New(os.Getenv(constants.EnvGithubAuthKey), os.Getenv(constants.EnvGithubAuthSecret), utils.GetUrlRoot(cfg.Port)+"/auth/github/callback"), // github
 	)
-	r.GET("/auth/:provider/callback", jwtMiddleware.LoginHandler) // integration 3rd auth to jwt
-	r.GET("/auth/:provider", func(c *gin.Context) {
+	r.GET("/auth3rd/:provider/callback", jwtMiddleware.LoginHandler) // integration 3rd auth to jwt
+	r.GET("/auth3rd/:provider", func(c *gin.Context) {
 		ctx := c.Request.Context()
 		provider := c.Param("provider")
 
@@ -83,7 +78,7 @@ func useGoAuth(r *gin.Engine, cfg config.AppConfig) {
 				zap.String("userId", gothUser.Name))
 
 			// redirect to callback
-			redirectTo := fmt.Sprintf("/auth/%s/callback", provider)
+			redirectTo := fmt.Sprintf("/auth3rd/%s/callback", provider)
 			c.Redirect(http.StatusPermanentRedirect, redirectTo) // integration 3rd auth to jwt
 			return
 		} else {

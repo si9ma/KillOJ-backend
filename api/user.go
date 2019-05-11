@@ -2,6 +2,13 @@ package api
 
 import (
 	"net/http"
+	"strconv"
+
+	"github.com/si9ma/KillOJ-backend/dao"
+
+	"github.com/si9ma/KillOJ-backend/middleware"
+
+	"github.com/si9ma/KillOJ-backend/auth"
 
 	"github.com/jinzhu/gorm"
 
@@ -37,9 +44,13 @@ func SetupUser(r *gin.Engine) {
 	r.POST(SignUpPath, UserInfoEdit)
 
 	// should auth
-	authGroup.POST(ProfilePath, UserInfoEdit)
-	authGroup.GET(ProfilePath, GetUserInfo)
-	authGroup.GET("/user/:id", GetOtherUserInfo)
+	auth.AuthGroup.POST(ProfilePath, UserInfoEdit)
+	auth.AuthGroup.GET(ProfilePath, GetUserInfo)
+	auth.AuthGroup.GET("/user/:id", GetOtherUserInfo)
+	auth.AuthGroup.PUT("/admin/maintainers/:id",
+		middleware.AuthorizateFunc(UpdateMaintainer, auth.Administrator))
+	auth.AuthGroup.GET("/admin/maintainers",
+		middleware.AuthorizateFunc(GetAllMainters, auth.Administrator))
 }
 
 func extractUser(c *gin.Context) (*model.User, bool) {
@@ -110,7 +121,7 @@ func UserInfoEdit(c *gin.Context) {
 	oldUser := model.User{}
 	// when update user info
 	if c.Request.RequestURI == ProfilePath {
-		userID := GetUserIDFromJWT(c) // get ID from jwt
+		userID := auth.GetUserFromJWT(c).ID // get ID from jwt
 		err := db.First(&oldUser, userID).Error
 		if hasErr, _ := mysql.ApplyDBError(c, err); hasErr {
 			log.For(ctx).Error("query newUser fail", zap.Error(err), zap.Int("userId", userID))
@@ -195,6 +206,7 @@ func UserInfoEdit(c *gin.Context) {
 		log.For(ctx).Info("update newUser success", zap.Int("userId", newUser.ID))
 	// sign up newUser
 	case SignUpPath:
+		newUser.Role = int(auth.Normal) // default user role is normal
 		// save
 		if err := db.Create(&newUser).Error; err != nil {
 			log.For(ctx).Error("create newUser fail", zap.Error(err))
@@ -215,7 +227,7 @@ func UserInfoEdit(c *gin.Context) {
 func GetUserInfo(c *gin.Context) {
 	ctx := c.Request.Context()
 	db := otgrom.SetSpanToGorm(ctx, gbl.DB)
-	userID := GetUserIDFromJWT(c)
+	userID := auth.GetUserFromJWT(c).ID
 	user := model.User{}
 
 	err := db.First(&user, userID).Error
@@ -229,21 +241,109 @@ func GetUserInfo(c *gin.Context) {
 
 func GetOtherUserInfo(c *gin.Context) {
 	ctx := c.Request.Context()
-	db := otgrom.SetSpanToGorm(ctx, gbl.DB)
-	userID := c.Param("id")
-	user := model.User{}
 
-	err := db.First(&user, userID).Error
-	if hasErr, isNotExist := mysql.ApplyDBError(c, err); isNotExist {
-		log.For(ctx).Error("user not exist", zap.Error(err), zap.String("userId", userID))
+	// parse id
+	userIdStr := c.Param("id")
+	userID, err := strconv.Atoi(userIdStr)
+	if err != nil {
+		log.For(ctx).Error("parse userId fail", zap.Error(err), zap.String("userIdStr", userIdStr))
 
 		_ = c.Error(err).SetType(gin.ErrorTypePublic).
-			SetMeta(kerror.ErrNotExist.WithArgs(userID))
+			SetMeta(kerror.ErrNotFoundGeneral)
 		return
-	} else if hasErr {
-		log.For(ctx).Error("get user info fail", zap.Error(err), zap.String("userId", userID))
+	}
+
+	user, ok := dao.IsUserExist(c, userID)
+	if !ok {
 		return
 	}
 
 	c.JSON(http.StatusOK, user)
+}
+
+type updateMaintainerArg struct {
+	Role int `json:"role" binding:"exists"`
+}
+
+func UpdateMaintainer(c *gin.Context) {
+	ctx := c.Request.Context()
+	db := otgrom.SetSpanToGorm(ctx, gbl.DB)
+	arg := updateMaintainerArg{}
+
+	// parse id
+	userIdStr := c.Param("id")
+	userId, err := strconv.Atoi(userIdStr)
+	if err != nil {
+		log.For(ctx).Error("parse userId fail", zap.Error(err), zap.String("userIdStr", userIdStr))
+
+		_ = c.Error(err).SetType(gin.ErrorTypePublic).
+			SetMeta(kerror.ErrNotFoundGeneral)
+		return
+	}
+
+	// bind
+	if err := c.ShouldBind(&arg); err != nil {
+		if _, ok := err.(validator.ValidationErrors); ok {
+			_ = c.Error(err).SetType(gin.ErrorTypeBind)
+		}
+
+		_ = c.Error(err).SetType(gin.ErrorTypePublic)
+		c.Status(http.StatusBadRequest)
+		return
+	}
+
+	// arguments check
+	if auth.Role(arg.Role) != auth.Normal && auth.Role(arg.Role) != auth.Maintainer {
+		log.For(ctx).Error("only allow update maintainer role between normal and maintainer",
+			zap.Any("arg", arg.Role))
+
+		fields := map[string]interface{}{
+			"role": "1 or 2",
+		}
+		_ = c.Error(kerror.EmptyError).SetType(gin.ErrorTypePublic).
+			SetMeta(kerror.ErrArgValidateFail.With(fields))
+		return
+	}
+
+	// can't change your self type,
+	// because you are administrator
+	if userId == auth.GetUserFromJWT(c).ID {
+		log.For(ctx).Error("you can't change your self type", zap.Int("userId", userId))
+
+		_ = c.Error(kerror.EmptyError).SetType(gin.ErrorTypePublic).
+			SetMeta(kerror.ErrShouldNotUpdateSelf.WithArgs("type"))
+		return
+	}
+
+	// if user not exist, return
+	if _, ok := dao.IsUserExist(c, userId); !ok {
+		return
+	}
+
+	user := model.User{ID: userId}
+	err = db.Model(&user).Update("role", arg.Role).Error
+	if hasErr, isNotFound := mysql.ApplyDBError(c, err); isNotFound {
+		log.For(ctx).Error("user not exist", zap.Error(err), zap.Int("userId", userId))
+
+		_ = c.Error(err).SetType(gin.ErrorTypePublic).
+			SetMeta(kerror.ErrNotFound.WithArgs(userId))
+		return
+	} else if hasErr {
+		log.For(ctx).Error("update user type fail", zap.Error(err), zap.Int("userid", userId))
+		return
+	}
+}
+
+func GetAllMainters(c *gin.Context) {
+	ctx := c.Request.Context()
+	db := otgrom.SetSpanToGorm(ctx, gbl.DB)
+
+	var users []model.User
+	err := db.Where("role = ?", auth.Maintainer).Find(&users).Error
+	if hasErr, _ := mysql.ApplyDBError(c, err); hasErr {
+		log.For(ctx).Error("update user type fail", zap.Error(err))
+		return
+	}
+
+	c.JSON(http.StatusOK, users)
 }
