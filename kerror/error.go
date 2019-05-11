@@ -57,7 +57,7 @@ var (
 
 func (r ErrResponse) MarshalJSON() ([]byte, error) {
 	template := `{"code":%d,"message":"%s"`
-	part := fmt.Sprintf(template, r.Code, r.Tip.String())
+	part := fmt.Sprintf(template, r.Code, utils.EscapeDoubleQuotes(r.Tip.String()))
 	res := []byte(part)
 
 	// add Extra field

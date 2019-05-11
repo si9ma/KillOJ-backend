@@ -5,6 +5,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/si9ma/KillOJ-backend/wrap"
+
 	"github.com/markbates/goth/gothic"
 	"github.com/si9ma/KillOJ-common/mysql"
 
@@ -181,12 +183,7 @@ func passwdAuthenticate(c *gin.Context) (interface{}, error) {
 	db := otgrom.SetSpanToGorm(ctx, gbl.DB)
 
 	// bind
-	if err := c.ShouldBind(&loginVals); err != nil {
-		log.For(ctx).Error("bind login info fail",
-			zap.String("username", loginVals.UserName),
-			zap.String("password", loginVals.Password))
-
-		_ = c.Error(err).SetType(gin.ErrorTypeBind)
+	if !wrap.ShouldBind(c, &loginVals, false) {
 		return "", jwt.ErrMissingLoginValues
 	}
 	userName := loginVals.UserName
