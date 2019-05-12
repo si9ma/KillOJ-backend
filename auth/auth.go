@@ -48,9 +48,8 @@ const (
 )
 
 var (
-	AuthGroup      *gin.RouterGroup      // auth group
-	jwtMiddleware  *jwt.GinJWTMiddleware // jwt middleware
-	JwtIdentityKey = "id"
+	AuthGroup     *gin.RouterGroup      // auth group
+	jwtMiddleware *jwt.GinJWTMiddleware // jwt middleware
 )
 
 func SetupAuth(r *gin.Engine) {
@@ -67,12 +66,12 @@ func SetupAuth(r *gin.Engine) {
 		Key:         []byte(jwtSecret),
 		Timeout:     time.Hour,
 		MaxRefresh:  time.Hour * 24 * 7, // 7 day
-		IdentityKey: JwtIdentityKey,
+		IdentityKey: constants.JwtIdentityKey,
 		PayloadFunc: func(data interface{}) jwt.MapClaims {
 			if v, ok := data.(model.User); ok {
 				return jwt.MapClaims{
-					JwtIdentityKey: v.ID,
-					"role":         v.Role,
+					constants.JwtIdentityKey: v.ID,
+					"role":                   v.Role,
 				}
 			}
 			return jwt.MapClaims{}
@@ -81,7 +80,7 @@ func SetupAuth(r *gin.Engine) {
 			claims := jwt.ExtractClaims(c)
 
 			// todo There may be a bug here
-			userId := claims[JwtIdentityKey].(float64)
+			userId := claims[constants.JwtIdentityKey].(float64)
 			role := claims["role"].(float64)
 			return model.User{
 				ID:   int(userId),
@@ -244,6 +243,6 @@ func passwdAuthenticate(c *gin.Context) (interface{}, error) {
 
 func GetUserFromJWT(c *gin.Context) model.User {
 	// get user from jwt
-	u, _ := c.Get(JwtIdentityKey)
+	u, _ := c.Get(constants.JwtIdentityKey)
 	return u.(model.User)
 }

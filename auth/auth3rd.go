@@ -13,10 +13,10 @@ import (
 	"github.com/si9ma/KillOJ-backend/config"
 	"github.com/si9ma/KillOJ-backend/gbl"
 	"github.com/si9ma/KillOJ-backend/kerror"
+	"github.com/si9ma/KillOJ-common/model"
 	"github.com/si9ma/KillOJ-common/mysql"
 	"github.com/si9ma/KillOJ-common/utils"
 	otgorm "github.com/smacker/opentracing-gorm"
-	"si9ma.com/demo/generated/model"
 
 	"github.com/si9ma/KillOJ-common/log"
 	"go.uber.org/zap"

@@ -35,6 +35,7 @@ var (
 	ErrAlreadyExist         = ErrResponse{http.StatusBadRequest, 40003, tip.AlreadyExistTip, nil}
 	ErrShouldBothExistOrNot = ErrResponse{http.StatusBadRequest, 40004, tip.ShouldBothExistOrNotTip, nil}
 	ErrShouldNotUpdateSelf  = ErrResponse{http.StatusBadRequest, 40005, tip.ShouldNotUpdateSelfTip, nil}
+	ErrAlreadyInvite        = ErrResponse{http.StatusBadRequest, 40006, tip.AlreadyInviteTip, nil}
 
 	// 401xx:
 	ErrUnauthorizedGeneral = ErrResponse{http.StatusUnauthorized, 40100, tip.UnauthorizedGeneralTip, nil}
@@ -48,8 +49,9 @@ var (
 	ErrForbiddenGeneral = ErrResponse{http.StatusForbidden, 40300, tip.ForbiddenTip, nil}
 
 	// 404xx : not found
-	ErrNotFoundGeneral = ErrResponse{http.StatusForbidden, 40400, tip.NotFoundTip, nil}
-	ErrNotFound        = ErrResponse{http.StatusBadRequest, 40401, tip.NotExistTip, nil}
+	ErrNotFoundGeneral     = ErrResponse{http.StatusForbidden, 40400, tip.NotFoundTip, nil}
+	ErrNotFound            = ErrResponse{http.StatusBadRequest, 40401, tip.NotExistTip, nil}
+	ErrNotFoundOrOutOfDate = ErrResponse{http.StatusBadRequest, 40401, tip.NotExistOrOutOfDateTip, nil}
 
 	// 500xx: Internal Server Error
 	ErrInternalServerErrorGeneral = ErrResponse{http.StatusInternalServerError, 50000, tip.InternalServerErrorTip, nil}

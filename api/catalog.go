@@ -19,7 +19,7 @@ import (
 	"github.com/si9ma/KillOJ-common/model"
 )
 
-func setupCatalog(r *gin.Engine) {
+func SetupCatalog(r *gin.Engine) {
 	// everyone can access
 	r.GET("/catalogs", GetAllCatalogs)
 	r.GET("/catalogs/:id", GetCatalog)

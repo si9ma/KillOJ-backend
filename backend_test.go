@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/si9ma/KillOJ-common/kredis"
+
 	"github.com/si9ma/KillOJ-backend/api"
 
 	"github.com/opentracing-contrib/go-gin/ginhttp"
@@ -52,6 +54,11 @@ func setupTestRouter() (r *gin.Engine, err error) {
 	if gbl.DB, err = mysql.GetTestDB(); err != nil {
 		return nil, err
 	}
+	gbl.Redis, err = kredis.GetTestRedis()
+	if err != nil {
+		return nil, err
+	}
+	gbl.DB.LogMode(true)
 
 	r.Use(ginhttp.Middleware(gbl.Tracer))
 	r.Use(middleware.Errors())

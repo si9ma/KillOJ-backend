@@ -7,7 +7,6 @@ import (
 	"github.com/si9ma/KillOJ-backend/gbl"
 
 	"github.com/opentracing/opentracing-go"
-	"github.com/si9ma/KillOJ-common/kredis"
 	"github.com/si9ma/KillOJ-common/mysql"
 	"github.com/si9ma/KillOJ-common/tracing"
 
@@ -70,11 +69,11 @@ func Init(cfgPath string) (cfg *config.Config, err error) {
 		return nil, err
 	}
 
-	// init redis
-	if gbl.Redis, err = kredis.Init(cfg.Redis); err != nil {
-		log.Bg().Error("Init redis fail", zap.Error(err))
-		return nil, err
-	}
+	//// init redis
+	//if gbl.Redis, err = kredis.Init(cfg.Redis); err != nil {
+	//	log.Bg().Error("Init redis fail", zap.Error(err))
+	//	return nil, err
+	//}
 
 	return cfg, nil
 }

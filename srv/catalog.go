@@ -83,20 +83,18 @@ func UpdateCatalog(c *gin.Context, newCatalog *model.Catalog) error {
 	db := otgrom.SetSpanToGorm(ctx, gbl.DB)
 
 	// check if catalog exist
-	oldCatalog := model.Catalog{}
-	err := db.First(&oldCatalog, newCatalog.ID).Error
-	if mysql.ErrorHandleAndLog(c, err, true,
-		"query catalog", newCatalog.ID) != mysql.Success {
+	oldCatalog, err := GetCatalog(c, newCatalog.ID)
+	if err != nil {
 		return err
 	}
 
 	//  check unique
-	if !catalogCheckUnique(c, &oldCatalog, newCatalog) {
+	if !catalogCheckUnique(c, oldCatalog, newCatalog) {
 		return fmt.Errorf("check unique fail")
 	}
 
 	// update
-	err = db.Model(&oldCatalog).Updates(newCatalog).Error
+	err = db.Model(oldCatalog).Updates(newCatalog).Error
 	if mysql.ErrorHandleAndLog(c, err, true,
 		"update catalog", newCatalog.ID) != mysql.Success {
 		return err
@@ -134,12 +132,10 @@ func catalogCheckUnique(c *gin.Context, oldCatalog *model.Catalog, newCatalog *m
 func DeleteCatalog(c *gin.Context, id int) error {
 	ctx := c.Request.Context()
 	db := otgrom.SetSpanToGorm(ctx, gbl.DB)
-	catalog := model.Catalog{}
 
 	// check if catalog exist
-	err := db.First(&catalog, id).Error
-	if mysql.ErrorHandleAndLog(c, err, true,
-		"get catalog info", id) != mysql.Success {
+	catalog, err := GetCatalog(c, id)
+	if err != nil {
 		return err
 	}
 
