@@ -3,6 +3,9 @@ package api
 import (
 	"net/http"
 
+	"github.com/go-redis/redis"
+	"github.com/si9ma/KillOJ-backend/kerror"
+
 	"github.com/si9ma/KillOJ-backend/data"
 
 	"github.com/si9ma/KillOJ-backend/srv"
@@ -25,9 +28,10 @@ func setupGroup(r *gin.Engine) {
 	auth.AuthGroup.GET("/groups/group/:id", GetGroup)
 	auth.AuthGroup.POST("/groups", AddGroup)
 	auth.AuthGroup.PUT("/groups/group/:id", UpdateGroup)
-	auth.AuthGroup.POST("/groups/group/:id/invite", Invite)
-	auth.AuthGroup.GET("/groups/join/:uuid", JoinQuery)
-	auth.AuthGroup.POST("/groups/join/:uuid", Join)
+	auth.AuthGroup.POST("/groups/group/:id/invite", Invite2Group)
+	auth.AuthGroup.GET("/groups/group/:id/invite", GetGroupInviteInfo)
+	auth.AuthGroup.GET("/groups/join/:uuid", JoinGroupQuery)
+	auth.AuthGroup.POST("/groups/join/:uuid", JoinGroup)
 	//auth.AuthGroup.DELETE("/groups/:id", DeleteGroup)
 }
 
@@ -130,9 +134,34 @@ func UpdateGroup(c *gin.Context) {
 //	c.JSON(http.StatusOK, nil)
 //}
 
-func Invite(c *gin.Context) {
+func GetGroupInviteInfo(c *gin.Context) {
 	ctx := c.Request.Context()
-	inviteData := data.InviteData{}
+	uriArg := QueryArg{}
+
+	// bind uri
+	if !wrap.ShouldBind(c, &uriArg, true) {
+		return
+	}
+
+	inviteData, err := srv.GetGroupInviteInfo(c, uriArg.ID)
+	switch err {
+	case redis.Nil: // not found
+		log.For(ctx).Error("group invite not exist", zap.Int("groupID", uriArg.ID))
+		_ = c.Error(err).SetType(gin.ErrorTypePublic).
+			SetMeta(kerror.ErrNotFoundOrOutOfDate)
+		return
+	case nil: // success
+		break // continue
+	default: // system error
+		return
+	}
+
+	c.JSON(http.StatusOK, inviteData)
+}
+
+func Invite2Group(c *gin.Context) {
+	ctx := c.Request.Context()
+	inviteData := data.GroupInviteData{}
 	uriArg := QueryArg{}
 
 	// bind uri
@@ -146,7 +175,7 @@ func Invite(c *gin.Context) {
 	}
 
 	inviteData.GroupID = uriArg.ID
-	if err := srv.Invite(c, &inviteData); err != nil {
+	if err := srv.Invite2Group(c, &inviteData); err != nil {
 		log.For(ctx).Error("group invite fail", zap.Error(err), zap.Int("groupId", uriArg.ID))
 		return
 	}
@@ -156,11 +185,7 @@ func Invite(c *gin.Context) {
 	c.JSON(http.StatusOK, inviteData)
 }
 
-type uuidArg struct {
-	UUID string `uri:"uuid" binding:"uuid,required"`
-}
-
-func JoinQuery(c *gin.Context) {
+func JoinGroupQuery(c *gin.Context) {
 	ctx := c.Request.Context()
 	uriArg := uuidArg{}
 
@@ -169,7 +194,7 @@ func JoinQuery(c *gin.Context) {
 		return
 	}
 
-	resp, err := srv.JoinQuery(c, uriArg.UUID)
+	resp, err := srv.JoinGroupQuery(c, uriArg.UUID)
 	if err != nil {
 		log.For(ctx).Error("query before join fail", zap.Error(err), zap.String("uuid", uriArg.UUID))
 		return
@@ -178,11 +203,7 @@ func JoinQuery(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
-type joinArg struct {
-	Password string `json:"password"`
-}
-
-func Join(c *gin.Context) {
+func JoinGroup(c *gin.Context) {
 	ctx := c.Request.Context()
 	uriArg := uuidArg{}
 	arg := joinArg{}
@@ -197,7 +218,7 @@ func Join(c *gin.Context) {
 		return
 	}
 
-	if err := srv.Join(c, uriArg.UUID, arg.Password); err != nil {
+	if err := srv.JoinGroup(c, uriArg.UUID, arg.Password); err != nil {
 		log.For(ctx).Error("join group fail", zap.Error(err), zap.String("uuid", uriArg.UUID))
 		return
 	}

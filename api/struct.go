@@ -9,3 +9,11 @@ type PageArg struct {
 type QueryArg struct {
 	ID int `json:"id" uri:"id" form:"id" binding:"required"`
 }
+
+type uuidArg struct {
+	UUID string `uri:"uuid" binding:"uuid,required"`
+}
+
+type joinArg struct {
+	Password string `json:"password"`
+}

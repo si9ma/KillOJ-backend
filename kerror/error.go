@@ -36,6 +36,7 @@ var (
 	ErrShouldBothExistOrNot = ErrResponse{http.StatusBadRequest, 40004, tip.ShouldBothExistOrNotTip, nil}
 	ErrShouldNotUpdateSelf  = ErrResponse{http.StatusBadRequest, 40005, tip.ShouldNotUpdateSelfTip, nil}
 	ErrAlreadyInvite        = ErrResponse{http.StatusBadRequest, 40006, tip.AlreadyInviteTip, nil}
+	ErrAlreadyFinished      = ErrResponse{http.StatusBadRequest, 40007, tip.AlreadyFinishTip, nil}
 
 	// 401xx:
 	ErrUnauthorizedGeneral = ErrResponse{http.StatusUnauthorized, 40100, tip.UnauthorizedGeneralTip, nil}

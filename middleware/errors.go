@@ -32,6 +32,10 @@ func validationErrorToText(e *validator.FieldError) string {
 		return fmt.Sprintf(tip.ValidateEmailTip.String())
 	case "len":
 		return fmt.Sprintf(tip.ValidateLenTip.String(), word, e.Param)
+	case "gte":
+		return fmt.Sprintf(tip.ValidateGteTip.String(), word, e.Param)
+	case "gtfield":
+		return fmt.Sprintf(tip.ValidateMinTip.String(), word, e.Param)
 	}
 	return fmt.Sprintf(tip.ValidateInvalidTip.String(), word)
 }

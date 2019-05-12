@@ -3,7 +3,12 @@ package srv
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
+
+	"github.com/go-redis/redis"
+
+	"github.com/jinzhu/copier"
 
 	"github.com/si9ma/KillOJ-backend/wrap"
 
@@ -14,8 +19,6 @@ import (
 	"github.com/si9ma/KillOJ-backend/data"
 
 	"github.com/si9ma/KillOJ-common/kredis"
-
-	"github.com/si9ma/KillOJ-common/utils"
 
 	"github.com/si9ma/KillOJ-backend/kerror"
 
@@ -37,7 +40,7 @@ import (
 )
 
 const (
-	InvitePrefix = "killoj_invite_"
+	GroupInvitePrefix = "group_invite_"
 )
 
 func GetAllGroups(c *gin.Context, page, pageSize int, order string) ([]model.Group, error) {
@@ -131,7 +134,7 @@ func UpdateGroup(c *gin.Context, newGroup *model.Group) error {
 	}
 
 	// check owner
-	if err := checkOwner(c, oldGroup); err != nil {
+	if err := checkGroupOwner(c, oldGroup); err != nil {
 		return err
 	}
 
@@ -176,7 +179,7 @@ func groupCheckUnique(c *gin.Context, oldGroup *model.Group, newGroup *model.Gro
 	return true
 }
 
-func checkOwner(c *gin.Context, group *model.Group) error {
+func checkGroupOwner(c *gin.Context, group *model.Group) error {
 	ctx := c.Request.Context()
 
 	// check owner
@@ -204,7 +207,7 @@ func checkOwner(c *gin.Context, group *model.Group) error {
 //	}
 //
 //	// check owner
-//	if err := checkOwner(c, group); err != nil {
+//	if err := checkGroupOwner(c, group); err != nil {
 //		return err
 //	}
 //	// todo should check have problem under this group
@@ -219,85 +222,51 @@ func checkOwner(c *gin.Context, group *model.Group) error {
 //	return nil
 //}
 
-// check if user have these group Permission
-func CheckPermission(c *gin.Context, groups []int) error {
-	var err error
-
-	ctx := c.Request.Context()
-	db := otgrom.SetSpanToGorm(ctx, gbl.DB)
-	user := model.User{
-		ID: auth.GetUserFromJWT(c).ID,
-	}
-
-	err = db.Preload("Groups", "group_id in (?)", groups).First(&user).Error
-
-	// error handle
-	if mysql.ErrorHandleAndLog(c, err, true,
-		"get groups", nil) != mysql.Success {
-		return err
-	}
-
-	// user not all these Permission
-	if len(user.Groups) != len(groups) {
-		var failGroups []int
-		var okGroups []int
-
-		for _, group := range user.Groups {
-			okGroups = append(okGroups, group.ID)
-		}
-		for _, group := range groups {
-			// if not contains
-			if !utils.ContainsInt(okGroups, group) {
-				failGroups = append(failGroups, group)
-			}
-		}
-		fields := map[string]interface{}{
-			"groups": failGroups,
-		}
-		log.For(ctx).Error("user not these permission", zap.Any("groups", failGroups))
-
-		_ = c.Error(kerror.EmptyError).SetType(gin.ErrorTypePublic).
-			SetMeta(kerror.ErrForbiddenGeneral.With(fields))
-		return fmt.Errorf("check groups permission fail")
-	}
-
-	log.For(ctx).Info("check all permission success", zap.Any("groups", groups))
-	return nil
-}
-
-func Invite(c *gin.Context, inviteData *data.InviteData) (err error) {
+func GetGroupInviteInfo(c *gin.Context, groupID int) (*data.GroupInviteData, error) {
 	ctx := c.Request.Context()
 	redisCli := kredis.WrapRedisClient(ctx, gbl.Redis)
 
 	// check if group exist
-	oldGroup, err := GetGroup(c, inviteData.GroupID)
+	group, err := GetGroup(c, groupID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// check owner
-	if err := checkOwner(c, oldGroup); err != nil {
-		return err
+	if err := checkGroupOwner(c, group); err != nil {
+		return nil, err
 	}
-	//
-	//// check permission
-	//if len(inviteData.AllowGroups) != 0 {
-	//	if err := CheckPermission(c, inviteData.AllowGroups); err != nil {
-	//		return err
-	//	}
-	//}
 
-	// check if already invite
-	k := InvitePrefix + strconv.Itoa(inviteData.GroupID)
-	err = redisCli.Get(k).Err()
-	if res := kredis.ErrorHandleAndLog(c, err, false,
-		"check if already invite group", k, inviteData.GroupID); res == kredis.Success {
+	// check if already invite,
+	// if already invite --> return data
+	k := GroupInvitePrefix + strconv.Itoa(groupID)
+	uuidVal, err := redisCli.Get(k).Result()
+	res := kredis.ErrorHandleAndLog(c, err, false,
+		"check if already invite group", k, groupID)
+	switch res {
+	case kredis.Success:
+		// remove prefix
+		inviteId := strings.ReplaceAll(uuidVal, GroupInvitePrefix, "")
+		d, err := GetGroupInviteData(c, inviteId)
+		return d, err
+	default:
+		return nil, err
+	}
+}
 
-		err := fmt.Errorf("already invite group")
-		_ = c.Error(err).SetType(gin.ErrorTypePublic).
-			SetMeta(kerror.ErrAlreadyInvite)
-		return err
-	} else if res != kredis.NotFound {
+func Invite2Group(c *gin.Context, inviteData *data.GroupInviteData) (err error) {
+	ctx := c.Request.Context()
+	redisCli := kredis.WrapRedisClient(ctx, gbl.Redis)
+
+	d, err := GetGroupInviteInfo(c, inviteData.GroupID)
+	if err != nil && err == redis.Nil {
+		// because we store invite data in redis --> if error is redis.Nil,
+		// invite not already exist, we should generate new invite info,
+		// so continue
+	} else {
+		// if other error or invite already exist, we should copy invite date to inviteData
+		// then return
+		copier.Copy(inviteData, d)
 		return err
 	}
 
@@ -311,7 +280,7 @@ func Invite(c *gin.Context, inviteData *data.InviteData) (err error) {
 	}
 	inviteData.ID = uuid.String()
 
-	// save invite data to redisCli
+	// save invite data to redis
 	res, err := kjson.MarshalString(inviteData)
 	if err != nil {
 		log.For(ctx).Error("marshal json fail", zap.Error(err),
@@ -322,43 +291,55 @@ func Invite(c *gin.Context, inviteData *data.InviteData) (err error) {
 	}
 
 	timeout := time.Duration(inviteData.Timeout) * time.Second
-	k1, k2 := InvitePrefix+inviteData.ID, InvitePrefix+strconv.Itoa(inviteData.GroupID)
+	k1, k2 := GroupInvitePrefix+inviteData.ID, GroupInvitePrefix+strconv.Itoa(inviteData.GroupID)
 
 	// save invite data
 	err = redisCli.Set(k1, res, timeout).Err()
 	if res := kredis.ErrorHandleAndLog(c, err, true,
-		"save invite data", k1, nil); res != kredis.Success {
+		"save group invite data", k1, nil); res != kredis.Success {
 		return err
 	}
 
 	// mark group as already invite
 	err = redisCli.Set(k2, true, timeout).Err()
 	if res := kredis.ErrorHandleAndLog(c, err, true,
-		"save invite data", k1, nil); res != kredis.Success {
+		"save group invite data", k1, nil); res != kredis.Success {
 		return err
 	}
 
 	return nil
 }
 
-// query before join
-func JoinQuery(c *gin.Context, inviteId string) (*data.GroupWrap, error) {
+// return value:
+func GetGroupInviteData(c *gin.Context, inviteId string) (*data.GroupInviteData, error) {
 	ctx := c.Request.Context()
 	redisCli := kredis.WrapRedisClient(ctx, gbl.Redis)
-	db := otgrom.SetSpanToGorm(ctx, gbl.DB)
 
 	// check if inviteId available
-	k := InvitePrefix + inviteId
+	k := GroupInvitePrefix + inviteId
 	res, err := redisCli.Get(k).Result()
-	if kredis.ErrorHandleAndLog(c, err, false,
-		"get invite data", k, nil) != kredis.Success {
+	if r := kredis.ErrorHandleAndLog(c, err, false,
+		"get invite data", k, nil); r != kredis.NotFound {
 		return nil, err
 	}
 
-	inviteData := data.InviteData{}
+	inviteData := data.GroupInviteData{}
 	if err := kjson.UnmarshalString(res, &inviteData); err != nil {
 		log.For(ctx).Error("unmarshal fail", zap.Error(err))
 		wrap.SetInternalServerError(c, err)
+		return nil, err
+	}
+
+	return &inviteData, nil
+}
+
+// query before join
+func JoinGroupQuery(c *gin.Context, inviteId string) (*data.GroupWrap, error) {
+	ctx := c.Request.Context()
+	db := otgrom.SetSpanToGorm(ctx, gbl.DB)
+
+	inviteData, err := GetGroupInviteData(c, inviteId)
+	if err != nil {
 		return nil, err
 	}
 
@@ -376,12 +357,12 @@ func JoinQuery(c *gin.Context, inviteId string) (*data.GroupWrap, error) {
 	}, nil
 }
 
-func Join(c *gin.Context, inviteId string, password string) (err error) {
+func JoinGroup(c *gin.Context, inviteId string, password string) (err error) {
 	ctx := c.Request.Context()
 	db := otgrom.SetSpanToGorm(ctx, gbl.DB)
 
 	// check if group exist
-	groupWrap, err := JoinQuery(c, inviteId)
+	groupWrap, err := JoinGroupQuery(c, inviteId)
 	if err != nil {
 		return err
 	}
