@@ -96,11 +96,19 @@ func clearTagIDs(problem *model.Problem) {
 	}
 }
 
-// clear all id of tag,
+// clear all id of sample,
 // avoid auto update by gorm
 func clearSampleIDs(problem *model.Problem) {
 	for i := range problem.ProblemSamples {
 		problem.ProblemSamples[i].ID = 0
+	}
+}
+
+// clear all id of test case,
+// avoid auto update by gorm
+func clearTestCaseIDs(problem *model.Problem) {
+	for i := range problem.ProblemTestCases {
+		problem.ProblemTestCases[i].ID = 0
 	}
 }
 
@@ -150,6 +158,7 @@ func AddProblem(c *gin.Context, newProblem *model.Problem) error {
 	// must clear ids
 	clearTagIDs(newProblem)
 	clearSampleIDs(newProblem)
+	clearTestCaseIDs(newProblem)
 
 	// filter tags
 	if err := filterTags(c, newProblem); err != nil {
@@ -269,6 +278,81 @@ func checkSamples(c *gin.Context, problem *model.Problem) error {
 	return nil
 }
 
+func deleteTestCases(c *gin.Context, problem *model.Problem) error {
+	ctx := c.Request.Context()
+	db := otgrom.SetSpanToGorm(ctx, gbl.DB)
+	var deleteTestCasesID []int
+	var remainTestCases []model.ProblemTestCase
+
+	for _, testCase := range problem.ProblemTestCases {
+		if testCase.DeleteIt {
+			deleteTestCasesID = append(deleteTestCasesID, testCase.ID)
+		} else {
+			remainTestCases = append(remainTestCases, testCase)
+		}
+	}
+
+	if len(deleteTestCasesID) == 0 {
+		log.For(ctx).Info("no testCase need delete", zap.Int("problemID", problem.ID))
+		return nil
+	}
+
+	err := db.Where("id in (?) AND problem_id = ?", deleteTestCasesID, problem.ID).Error
+	if mysql.ErrorHandleAndLog(c, err, true,
+		"delete testCases for problem", problem.ID) != mysql.Success {
+		return err
+	}
+
+	problem.ProblemTestCases = remainTestCases
+	return nil
+}
+
+func checkTestCases(c *gin.Context, problem *model.Problem) error {
+	ctx := c.Request.Context()
+	db := otgrom.SetSpanToGorm(ctx, gbl.DB)
+	var testCaseIDs []int
+
+	for _, testCase := range problem.ProblemTestCases {
+		if testCase.ID != 0 {
+			// if testCase id is 0 --> add testCase
+			testCaseIDs = append(testCaseIDs, testCase.ID)
+		}
+	}
+
+	tmpProblem := model.Problem{
+		ID: problem.ID,
+	}
+	err := db.Preload("ProblemTestCases", "id in (?)", testCaseIDs).First(&tmpProblem).Error
+	if mysql.ErrorHandleAndLog(c, err, true,
+		"find testCases of problem", problem.ID) != mysql.Success {
+		return err
+	}
+
+	var notExistTestCases []int
+	if len(testCaseIDs) != len(tmpProblem.ProblemTestCases) {
+		// some testCases not belong to this problem
+		helpMap := make(map[int]int)
+		for i, testCase := range tmpProblem.ProblemTestCases {
+			helpMap[testCase.ID] = i
+		}
+		for _, id := range testCaseIDs {
+			if _, ok := helpMap[id]; !ok {
+				notExistTestCases = append(notExistTestCases, id)
+			}
+		}
+		fields := map[string]interface{}{
+			"testCases": notExistTestCases,
+		}
+		log.For(ctx).Error("these testCases no exist", zap.Any("testCases", testCaseIDs))
+
+		_ = c.Error(kerror.EmptyError).SetType(gin.ErrorTypePublic).
+			SetMeta(kerror.ErrNotExist.WithArgs(notExistTestCases).With(fields))
+		return fmt.Errorf("some testCases no exist")
+	}
+
+	return nil
+}
+
 func UpdateProblem(c *gin.Context, newProblem *model.Problem) error {
 	ctx := c.Request.Context()
 	db := otgrom.SetSpanToGorm(ctx, gbl.DB)
@@ -294,6 +378,11 @@ func UpdateProblem(c *gin.Context, newProblem *model.Problem) error {
 		return err
 	}
 
+	// check if all test case exist
+	if err := checkTestCases(c, newProblem); err != nil {
+		return err
+	}
+
 	// delete tags which be mark as delete
 	if err := deleteTags(c, newProblem); err != nil {
 		return err
@@ -301,6 +390,11 @@ func UpdateProblem(c *gin.Context, newProblem *model.Problem) error {
 
 	// delete samples which be mark as delete
 	if err := deleteSamples(c, newProblem); err != nil {
+		return err
+	}
+
+	// delete test cases which be mark as delete
+	if err := deleteTestCases(c, newProblem); err != nil {
 		return err
 	}
 
