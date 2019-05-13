@@ -29,14 +29,15 @@ type ErrResponse struct {
 
 var (
 	// 400xx : bad request
-	ErrBadRequestGeneral    = ErrResponse{http.StatusBadRequest, 40000, tip.BadRequestGeneralTip, nil}
-	ErrArgValidateFail      = ErrResponse{http.StatusBadRequest, 40001, tip.ArgValidateFailTip, nil}
-	ErrNotExist             = ErrResponse{http.StatusBadRequest, 40002, tip.NotExistTip, nil}
-	ErrAlreadyExist         = ErrResponse{http.StatusBadRequest, 40003, tip.AlreadyExistTip, nil}
-	ErrShouldBothExistOrNot = ErrResponse{http.StatusBadRequest, 40004, tip.ShouldBothExistOrNotTip, nil}
-	ErrShouldNotUpdateSelf  = ErrResponse{http.StatusBadRequest, 40005, tip.ShouldNotUpdateSelfTip, nil}
-	ErrAlreadyInvite        = ErrResponse{http.StatusBadRequest, 40006, tip.AlreadyInviteTip, nil}
-	ErrAlreadyFinished      = ErrResponse{http.StatusBadRequest, 40007, tip.AlreadyFinishTip, nil}
+	ErrBadRequestGeneral           = ErrResponse{http.StatusBadRequest, 40000, tip.BadRequestGeneralTip, nil}
+	ErrArgValidateFail             = ErrResponse{http.StatusBadRequest, 40001, tip.ArgValidateFailTip, nil}
+	ErrNotExist                    = ErrResponse{http.StatusBadRequest, 40002, tip.NotExistTip, nil}
+	ErrAlreadyExist                = ErrResponse{http.StatusBadRequest, 40003, tip.AlreadyExistTip, nil}
+	ErrShouldBothExistOrNot        = ErrResponse{http.StatusBadRequest, 40004, tip.ShouldBothExistOrNotTip, nil}
+	ErrShouldNotUpdateSelf         = ErrResponse{http.StatusBadRequest, 40005, tip.ShouldNotUpdateSelfTip, nil}
+	ErrAlreadyInvite               = ErrResponse{http.StatusBadRequest, 40006, tip.AlreadyInviteTip, nil}
+	ErrAlreadyFinished             = ErrResponse{http.StatusBadRequest, 40007, tip.AlreadyFinishTip, nil}
+	ErrMustProvideWhenAnotherExist = ErrResponse{http.StatusBadRequest, 40008, tip.MustProvideWhenAnotherExistTip, nil}
 
 	// 401xx:
 	ErrUnauthorizedGeneral = ErrResponse{http.StatusUnauthorized, 40100, tip.UnauthorizedGeneralTip, nil}
@@ -90,6 +91,7 @@ func (r ErrResponse) With(Extra interface{}) ErrResponse {
 	return n
 }
 
+// todo there may be a bug here, when call With before WithArgs
 func (r ErrResponse) WithArgs(args ...interface{}) ErrResponse {
 	n := ErrResponse{}
 
@@ -101,7 +103,7 @@ func (r ErrResponse) WithArgs(args ...interface{}) ErrResponse {
 	for k, v := range r.Tip {
 		str := fmt.Sprintf(v, args...)
 		// remove map[ in of output
-		// todo There may be a bug hereo
+		// todo There may be a bug here
 		str = strings.ReplaceAll(str, "map[", "[")
 		n.Tip[k] = str
 	}

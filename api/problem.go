@@ -3,6 +3,8 @@ package api
 import (
 	"net/http"
 
+	"github.com/si9ma/KillOJ-backend/kerror"
+
 	"github.com/si9ma/KillOJ-common/model"
 
 	"github.com/si9ma/KillOJ-backend/srv"
@@ -95,6 +97,26 @@ func UpdateProblem(c *gin.Context) {
 	// bind request params
 	if !wrap.ShouldBind(c, &newProblem, false) {
 		return
+	}
+
+	// when delete tag, must provide id
+	for _, tag := range newProblem.Tags {
+		if tag.DeleteIt && tag.ID <= 0 {
+			log.For(ctx).Error("must provide id when delete tag")
+			_ = c.Error(kerror.EmptyError).SetType(gin.ErrorTypePublic).
+				SetMeta(kerror.ErrMustProvideWhenAnotherExist.WithArgs("delete_it of tag", "tag id"))
+			return
+		}
+	}
+
+	// when delete sample, must provide id
+	for _, sample := range newProblem.ProblemSamples {
+		if sample.DeleteIt && sample.ID <= 0 {
+			log.For(ctx).Error("must provide id when delete sample")
+			_ = c.Error(kerror.EmptyError).SetType(gin.ErrorTypePublic).
+				SetMeta(kerror.ErrMustProvideWhenAnotherExist.WithArgs("delete_it of sample", "tag id"))
+			return
+		}
 	}
 
 	// use id in uri path

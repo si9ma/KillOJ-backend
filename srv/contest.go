@@ -20,8 +20,6 @@ import (
 
 	"github.com/si9ma/KillOJ-common/kredis"
 
-	"github.com/si9ma/KillOJ-common/utils"
-
 	"github.com/si9ma/KillOJ-backend/kerror"
 
 	"github.com/si9ma/KillOJ-backend/auth"
@@ -254,15 +252,13 @@ func CheckPermission(c *gin.Context, groups []int, anyOne bool) error {
 	// user not all these Permission
 	if len(user.Groups) != len(groups) {
 		var failGroups []int
-		var okGroups []int
-
-		for _, group := range user.Groups {
-			okGroups = append(okGroups, group.ID)
+		helpMap := make(map[int]int)
+		for i, group := range user.Groups {
+			helpMap[group.ID] = i
 		}
-		for _, group := range groups {
-			// if not contains
-			if !utils.ContainsInt(okGroups, group) {
-				failGroups = append(failGroups, group)
+		for _, id := range groups {
+			if _, ok := helpMap[id]; !ok {
+				failGroups = append(failGroups, id)
 			}
 		}
 		fields := map[string]interface{}{

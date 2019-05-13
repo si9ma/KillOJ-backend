@@ -104,4 +104,8 @@ select distinct p.* from problem as p,user as u,user_in_group as up,user_in_cont
 	var problems []model.Problem
 	db.Raw(rawsql, 30).Limit(10).Offset(0).Find(&problems)
 	t.Log(kjson.MarshalString(&problems))
+
+	err = db.Raw("delete from problem_has_tag as t where t.tag_id = 22 and t.problem_id = 32").Error
+	err = db.First(&problem, 100).Error
+	t.Log(err)
 }

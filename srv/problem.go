@@ -35,9 +35,9 @@ func GetAllProblems(c *gin.Context, page, pageSize int, order string) ([]model.P
 	`
 	var problems []model.Problem
 	if order != "" {
-		err = db.Raw(rawsql, myID).Limit(pageSize).Offset(offset).Order(order).Find(&problems).Error
+		err = db.Preload("Tags").Raw(rawsql, myID).Limit(pageSize).Offset(offset).Order(order).Find(&problems).Error
 	} else {
-		err = db.Raw(rawsql, myID).Limit(pageSize).Offset(offset).Find(&problems).Error
+		err = db.Preload("Tags").Raw(rawsql, myID).Limit(pageSize).Offset(offset).Find(&problems).Error
 	}
 	// error handle
 	if mysql.ErrorHandleAndLog(c, err, true,
@@ -56,7 +56,7 @@ func GetProblem(c *gin.Context, id int) (*model.Problem, error) {
 	myID := auth.GetUserFromJWT(c).ID
 
 	// get problem
-	err := db.First(&problem, id).Error
+	err := db.Preload("Tags").Preload("ProblemSamples").First(&problem, id).Error
 	if mysql.ErrorHandleAndLog(c, err, true, "get problem", id) != mysql.Success {
 		return nil, err
 	}
@@ -88,6 +88,55 @@ func GetProblem(c *gin.Context, id int) (*model.Problem, error) {
 	return nil, kerror.EmptyError
 }
 
+// clear all id of tag,
+// avoid auto update by gorm
+func clearTagIDs(problem *model.Problem) {
+	for i := range problem.Tags {
+		problem.Tags[i].ID = 0
+	}
+}
+
+// clear all id of tag,
+// avoid auto update by gorm
+func clearSampleIDs(problem *model.Problem) {
+	for i := range problem.ProblemSamples {
+		problem.ProblemSamples[i].ID = 0
+	}
+}
+
+// filter tag, if tag already exist, we will not insert it
+func filterTags(c *gin.Context, problem *model.Problem) error {
+	var tagNames []string
+	var inDbTags []model.Tag
+
+	ctx := c.Request.Context()
+	db := otgrom.SetSpanToGorm(ctx, gbl.DB)
+
+	for _, tag := range problem.Tags {
+		tagNames = append(tagNames, tag.Name)
+	}
+
+	err := db.Where("name in (?)", tagNames).Find(&inDbTags).Error
+	if mysql.ErrorHandleAndLog(c, err, true,
+		"check if tags exist", tagNames) != mysql.Success {
+		return err
+	}
+
+	helpMap := make(map[string]int)
+	for i, tag := range problem.Tags {
+		helpMap[tag.Name] = i
+	}
+	// replace already exist
+	for _, tag := range inDbTags {
+		if v, ok := helpMap[tag.Name]; ok {
+			// replace
+			problem.Tags[v] = tag
+		}
+	}
+
+	return nil
+}
+
 func AddProblem(c *gin.Context, newProblem *model.Problem) error {
 	ctx := c.Request.Context()
 	db := otgrom.SetSpanToGorm(ctx, gbl.DB)
@@ -96,6 +145,15 @@ func AddProblem(c *gin.Context, newProblem *model.Problem) error {
 	//  check unique
 	if !problemCheckUnique(c, &oldProblem, newProblem) {
 		return fmt.Errorf("check unique fail")
+	}
+
+	// must clear ids
+	clearTagIDs(newProblem)
+	clearSampleIDs(newProblem)
+
+	// filter tags
+	if err := filterTags(c, newProblem); err != nil {
+		return err
 	}
 
 	// add new problem
@@ -107,6 +165,107 @@ func AddProblem(c *gin.Context, newProblem *model.Problem) error {
 
 	log.For(ctx).Info("add new problem success",
 		zap.String("problemName", newProblem.Name))
+	return nil
+}
+
+func deleteTags(c *gin.Context, problem *model.Problem) error {
+	ctx := c.Request.Context()
+	db := otgrom.SetSpanToGorm(ctx, gbl.DB)
+	var deleteTags []model.Tag
+
+	for _, tag := range problem.Tags {
+		if tag.DeleteIt {
+			deleteTags = append(deleteTags, tag)
+		}
+	}
+
+	// no tag need be deleted
+	if len(deleteTags) == 0 {
+		log.For(ctx).Info("no tag need delete", zap.Int("problemID", problem.ID))
+		return nil
+	}
+
+	err := db.Model(problem).Association("Tags").Delete(deleteTags).Error
+	if mysql.ErrorHandleAndLog(c, err, true,
+		"delete tags for problem", problem.ID) != mysql.Success {
+		return err
+	}
+
+	return nil
+}
+
+func deleteSamples(c *gin.Context, problem *model.Problem) error {
+	ctx := c.Request.Context()
+	db := otgrom.SetSpanToGorm(ctx, gbl.DB)
+	var deleteSamplesID []int
+	var remainSamples []model.ProblemSample
+
+	for _, sample := range problem.ProblemSamples {
+		if sample.DeleteIt {
+			deleteSamplesID = append(deleteSamplesID, sample.ID)
+		} else {
+			remainSamples = append(remainSamples, sample)
+		}
+	}
+
+	if len(deleteSamplesID) == 0 {
+		log.For(ctx).Info("no sample need delete", zap.Int("problemID", problem.ID))
+		return nil
+	}
+
+	err := db.Where("id in (?) AND problem_id = ?", deleteSamplesID, problem.ID).Error
+	if mysql.ErrorHandleAndLog(c, err, true,
+		"delete samples for problem", problem.ID) != mysql.Success {
+		return err
+	}
+
+	problem.ProblemSamples = remainSamples
+	return nil
+}
+
+func checkSamples(c *gin.Context, problem *model.Problem) error {
+	ctx := c.Request.Context()
+	db := otgrom.SetSpanToGorm(ctx, gbl.DB)
+	var sampleIDs []int
+
+	for _, sample := range problem.ProblemSamples {
+		if sample.ID != 0 {
+			// if sample id is 0 --> add sample
+			sampleIDs = append(sampleIDs, sample.ID)
+		}
+	}
+
+	tmpProblem := model.Problem{
+		ID: problem.ID,
+	}
+	err := db.Preload("ProblemSamples", "id in (?)", sampleIDs).First(&tmpProblem).Error
+	if mysql.ErrorHandleAndLog(c, err, true,
+		"find samples of problem", problem.ID) != mysql.Success {
+		return err
+	}
+
+	var notExistSamples []int
+	if len(sampleIDs) != len(tmpProblem.ProblemSamples) {
+		// some samples not belong to this problem
+		helpMap := make(map[int]int)
+		for i, sample := range tmpProblem.ProblemSamples {
+			helpMap[sample.ID] = i
+		}
+		for _, id := range sampleIDs {
+			if _, ok := helpMap[id]; !ok {
+				notExistSamples = append(notExistSamples, id)
+			}
+		}
+		fields := map[string]interface{}{
+			"samples": notExistSamples,
+		}
+		log.For(ctx).Error("these samples no exist", zap.Any("samples", sampleIDs))
+
+		_ = c.Error(kerror.EmptyError).SetType(gin.ErrorTypePublic).
+			SetMeta(kerror.ErrNotExist.WithArgs(notExistSamples).With(fields))
+		return fmt.Errorf("some samples no exist")
+	}
+
 	return nil
 }
 
@@ -128,6 +287,29 @@ func UpdateProblem(c *gin.Context, newProblem *model.Problem) error {
 	//  check unique
 	if !problemCheckUnique(c, oldProblem, newProblem) {
 		return fmt.Errorf("check unique fail")
+	}
+
+	// check if all sample exist
+	if err := checkSamples(c, newProblem); err != nil {
+		return err
+	}
+
+	// delete tags which be mark as delete
+	if err := deleteTags(c, newProblem); err != nil {
+		return err
+	}
+
+	// delete samples which be mark as delete
+	if err := deleteSamples(c, newProblem); err != nil {
+		return err
+	}
+
+	// must clear ids
+	clearTagIDs(newProblem)
+
+	// filter tags
+	if err := filterTags(c, newProblem); err != nil {
+		return err
 	}
 
 	// update
