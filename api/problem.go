@@ -119,6 +119,16 @@ func UpdateProblem(c *gin.Context) {
 		}
 	}
 
+	// when delete test case, must provide id
+	for _, testCase := range newProblem.ProblemTestCases {
+		if testCase.DeleteIt && testCase.ID <= 0 {
+			log.For(ctx).Error("must provide id when delete test case")
+			_ = c.Error(kerror.EmptyError).SetType(gin.ErrorTypePublic).
+				SetMeta(kerror.ErrMustProvideWhenAnotherExist.WithArgs("delete_it of test case", "tag id"))
+			return
+		}
+	}
+
 	// use id in uri path
 	newProblem.ID = uriArg.ID
 	if err := srv.UpdateProblem(c, &newProblem); err != nil {

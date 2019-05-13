@@ -222,7 +222,7 @@ func deleteSamples(c *gin.Context, problem *model.Problem) error {
 		return nil
 	}
 
-	err := db.Where("id in (?) AND problem_id = ?", deleteSamplesID, problem.ID).Error
+	err := db.Where("id in (?) AND problem_id = ?", deleteSamplesID, problem.ID).Delete(&model.ProblemSample{}).Error
 	if mysql.ErrorHandleAndLog(c, err, true,
 		"delete samples for problem", problem.ID) != mysql.Success {
 		return err
@@ -297,7 +297,7 @@ func deleteTestCases(c *gin.Context, problem *model.Problem) error {
 		return nil
 	}
 
-	err := db.Where("id in (?) AND problem_id = ?", deleteTestCasesID, problem.ID).Error
+	err := db.Where("id in (?) AND problem_id = ?", deleteTestCasesID, problem.ID).Delete(&model.ProblemTestCase{}).Error
 	if mysql.ErrorHandleAndLog(c, err, true,
 		"delete testCases for problem", problem.ID) != mysql.Success {
 		return err
