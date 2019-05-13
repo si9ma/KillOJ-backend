@@ -18,22 +18,15 @@ import (
 	otgrom "github.com/smacker/opentracing-gorm"
 )
 
-func GetAllTags(c *gin.Context, page, pageSize int, order string) ([]model.Tag, error) {
+func GetAllTags(c *gin.Context) ([]model.Tag, error) {
 	var err error
+	var tags []model.Tag
 
 	ctx := c.Request.Context()
 	db := otgrom.SetSpanToGorm(ctx, gbl.DB)
-	offset := (page - 1) * pageSize
-
-	var tags []model.Tag
-
-	if order != "" {
-		err = db.Model(&model.Tag{}).Order(order).Offset(offset).Limit(pageSize).Find(&tags).Error
-	} else {
-		err = db.Model(&model.Tag{}).Offset(offset).Limit(pageSize).Find(&tags).Error
-	}
 
 	// error handle
+	err = db.Find(&tags).Error
 	if mysql.ErrorHandleAndLog(c, err, true,
 		"get tags", nil) != mysql.Success {
 		return nil, err

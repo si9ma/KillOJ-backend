@@ -22,7 +22,7 @@ import (
 	"github.com/si9ma/KillOJ-common/model"
 )
 
-func setupGroup(r *gin.Engine) {
+func SetupGroup(r *gin.Engine) {
 	// need auth
 	auth.AuthGroup.GET("/groups", GetAllGroups)
 	auth.AuthGroup.GET("/groups/group/:id", GetGroup)

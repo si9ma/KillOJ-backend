@@ -5,7 +5,8 @@ import "github.com/gin-gonic/gin"
 func Setup(r *gin.Engine) {
 	SetupCatalog(r) // catalog
 	SetupUser(r)    // user
-	setupGroup(r)   // group
-	setupContest(r) // contest
-	setupProblem(r) // contest
+	SetupGroup(r)   // group
+	SetupContest(r) // contest
+	SetupProblem(r) // contest
+	SetupTag(r)     // contest
 }

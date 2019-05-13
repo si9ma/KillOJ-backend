@@ -19,7 +19,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func setupProblem(r *gin.Engine) {
+func SetupProblem(r *gin.Engine) {
 	// need auth
 	auth.AuthGroup.GET("/problems", GetAllProblems)
 	auth.AuthGroup.GET("/problems/problem/:id", GetProblem)

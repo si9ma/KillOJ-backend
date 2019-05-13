@@ -22,7 +22,7 @@ import (
 	"github.com/si9ma/KillOJ-common/model"
 )
 
-func setupContest(r *gin.Engine) {
+func SetupContest(r *gin.Engine) {
 	// need auth
 	auth.AuthGroup.GET("/contests", GetAllContests)
 	auth.AuthGroup.GET("/contests/contest/:id", GetContest)
