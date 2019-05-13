@@ -36,6 +36,16 @@ func validationErrorToText(e *validator.FieldError) string {
 		return fmt.Sprintf(tip.ValidateGteTip.String(), word, e.Param)
 	case "gtfield":
 		return fmt.Sprintf(tip.ValidateMinTip.String(), word, e.Param)
+	case "oneof":
+		return fmt.Sprintf(tip.OneOfTip.String(), word, e.Param)
+
+	// excludes
+	case "excludesrune":
+		fallthrough
+	case "excludesall":
+		fallthrough
+	case "excludes":
+		return fmt.Sprintf(tip.ExcludeTip.String(), word, e.Param)
 	}
 	return fmt.Sprintf(tip.ValidateInvalidTip.String(), word)
 }

@@ -1,7 +1,6 @@
 package api
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/si9ma/KillOJ-backend/wrap"
@@ -72,17 +71,6 @@ func extractUser(c *gin.Context) (*model.User, bool) {
 			_ = c.Error(kerror.EmptyError).SetType(gin.ErrorTypePublic).SetMeta(kerror.ErrArgValidateFail.With(fields))
 			return nil, false
 		}
-	}
-	// if password not empty, min length is 6
-	if user.Password != "" && len(user.Password) < 6 {
-		log.For(ctx).Error("password min length is 6")
-
-		// set error
-		fields := map[string]string{
-			"password": fmt.Sprintf(tip.ValidateMinTip.String(), "password", 6),
-		}
-		_ = c.Error(kerror.EmptyError).SetType(gin.ErrorTypePublic).SetMeta(kerror.ErrArgValidateFail.With(fields))
-		return nil, false
 	}
 
 	// validate argument organization
@@ -264,7 +252,7 @@ func GetOtherUserInfo(c *gin.Context) {
 }
 
 type updateMaintainerArg struct {
-	Role int `json:"role" binding:"exists"`
+	Role int `json:"role" binding:"exists,oneof=1 2"`
 }
 
 func UpdateMaintainer(c *gin.Context) {
@@ -282,19 +270,6 @@ func UpdateMaintainer(c *gin.Context) {
 
 	// bind other argument
 	if !wrap.ShouldBind(c, &arg, false) {
-		return
-	}
-
-	// arguments check
-	if auth.Role(arg.Role) != auth.Normal && auth.Role(arg.Role) != auth.Maintainer {
-		log.For(ctx).Error("only allow update maintainer role between normal and maintainer",
-			zap.Any("arg", arg.Role))
-
-		fields := map[string]interface{}{
-			"role": "1 or 2",
-		}
-		_ = c.Error(kerror.EmptyError).SetType(gin.ErrorTypePublic).
-			SetMeta(kerror.ErrArgValidateFail.With(fields))
 		return
 	}
 

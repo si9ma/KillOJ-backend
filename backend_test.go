@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/si9ma/KillOJ-backend/validator"
+
 	"github.com/si9ma/KillOJ-common/kredis"
 
 	"github.com/si9ma/KillOJ-backend/api"
@@ -59,6 +61,9 @@ func setupTestRouter() (r *gin.Engine, err error) {
 		return nil, err
 	}
 	gbl.DB.LogMode(true)
+
+	// setup custom validator
+	validator.SetupValidator()
 
 	r.Use(ginhttp.Middleware(gbl.Tracer))
 	r.Use(middleware.Errors())
