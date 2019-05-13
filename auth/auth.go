@@ -39,14 +39,6 @@ const (
 	NoUseGinJwtError = "NoUseGinJwtError"
 )
 
-type Role int
-
-const (
-	Administrator = Role(iota)
-	Maintainer
-	Normal
-)
-
 var (
 	AuthGroup     *gin.RouterGroup      // auth group
 	jwtMiddleware *jwt.GinJWTMiddleware // jwt middleware

@@ -45,9 +45,9 @@ func SetupUser(r *gin.Engine) {
 	auth.AuthGroup.GET(ProfilePath, GetUserInfo)
 	auth.AuthGroup.GET("/user/:id", GetOtherUserInfo)
 	auth.AuthGroup.PUT("/admin/maintainers/:id",
-		middleware.AuthorizateFunc(UpdateMaintainer, auth.Administrator))
+		middleware.AuthorizateFunc(UpdateMaintainer, model.Administrator))
 	auth.AuthGroup.GET("/admin/maintainers",
-		middleware.AuthorizateFunc(GetAllMaintainers, auth.Administrator))
+		middleware.AuthorizateFunc(GetAllMaintainers, model.Administrator))
 }
 
 func extractUser(c *gin.Context) (*model.User, bool) {
@@ -196,7 +196,7 @@ func UserInfoEdit(c *gin.Context) {
 		log.For(ctx).Info("update newUser success", zap.Int("userId", newUser.ID))
 	// sign up newUser
 	case SignUpPath:
-		newUser.Role = int(auth.Normal) // default user role is normal
+		newUser.Role = int(model.Normal) // default user role is normal
 		// save
 		if err := db.Create(&newUser).Error; err != nil {
 			log.For(ctx).Error("create newUser fail", zap.Error(err))
@@ -207,10 +207,6 @@ func UserInfoEdit(c *gin.Context) {
 		log.For(ctx).Info("create newUser success", zap.Int("userId", newUser.ID))
 	}
 
-	// newUser password and github_user_id should not return,
-	// clear newUser password and github_user_id in newUser struct,
-	newUser.Password = ""
-	newUser.GithubUserID = ""
 	c.JSON(http.StatusOK, newUser)
 }
 
@@ -320,9 +316,9 @@ func GetAllMaintainers(c *gin.Context) {
 
 	var users []model.User
 	if arg.Order != "" {
-		err = db.Where("role = ?", auth.Maintainer).Order(arg.Order).Offset(offset).Limit(arg.PageSize).Find(&users).Error
+		err = db.Where("role = ?", model.Maintainer).Order(arg.Order).Offset(offset).Limit(arg.PageSize).Find(&users).Error
 	} else {
-		err = db.Where("role = ?", auth.Maintainer).Offset(offset).Limit(arg.PageSize).Find(&users).Error
+		err = db.Where("role = ?", model.Maintainer).Offset(offset).Limit(arg.PageSize).Find(&users).Error
 	}
 	if mysql.ErrorHandleAndLog(c, err, true, "get maintainers", nil) != mysql.Success {
 		return

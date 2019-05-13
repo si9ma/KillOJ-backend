@@ -26,11 +26,11 @@ func SetupCatalog(r *gin.Engine) {
 
 	// need auth
 	auth.AuthGroup.POST("/catalogs",
-		middleware.AuthorizateFunc(AddCatalog, auth.Administrator, auth.Maintainer))
+		middleware.AuthorizateFunc(AddCatalog, model.Administrator, model.Maintainer))
 	auth.AuthGroup.PUT("/catalogs/:id",
-		middleware.AuthorizateFunc(UpdateCatalog, auth.Administrator, auth.Maintainer))
+		middleware.AuthorizateFunc(UpdateCatalog, model.Administrator, model.Maintainer))
 	auth.AuthGroup.DELETE("/catalogs/:id",
-		middleware.AuthorizateFunc(DeleteCatalog, auth.Administrator, auth.Maintainer))
+		middleware.AuthorizateFunc(DeleteCatalog, model.Administrator, model.Maintainer))
 }
 
 func GetAllCatalogs(c *gin.Context) {

@@ -5,18 +5,19 @@ import (
 	"github.com/si9ma/KillOJ-backend/auth"
 	"github.com/si9ma/KillOJ-backend/kerror"
 	"github.com/si9ma/KillOJ-common/log"
+	"github.com/si9ma/KillOJ-common/model"
 	"go.uber.org/zap"
 )
 
 // this middleware should use with gin-jwt
-func AuthorizateFunc(handle gin.HandlerFunc, roles ...auth.Role) gin.HandlerFunc {
+func AuthorizateFunc(handle gin.HandlerFunc, roles ...model.Role) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx := c.Request.Context()
 		user := auth.GetUserFromJWT(c)
 
 		match := false
 		for _, role := range roles {
-			if role == auth.Role(user.Role) {
+			if role == model.Role(user.Role) {
 				match = true
 				break
 			}

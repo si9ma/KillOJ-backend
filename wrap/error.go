@@ -9,3 +9,7 @@ func SetInternalServerError(c *gin.Context, err error) {
 		_ = c.Error(err).SetType(gin.ErrorTypePublic)
 	}
 }
+
+func DiscardGinError(c *gin.Context) {
+	c.Errors = []*gin.Error{}
+}
