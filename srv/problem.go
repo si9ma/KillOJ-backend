@@ -103,10 +103,13 @@ func GetAllProblems(c *gin.Context, page, pageSize int, order string, of string,
 		return nil, err
 	}
 
+	queryDB := db.Preload("Tags").Preload("UpVoteUsers", "attitude = ?", model.Up).
+		Preload("DownVoteUsers", "attitude = ?", model.Down).
+		Limit(pageSize).Offset(offset)
 	if order != "" {
-		err = db.Preload("Tags").Limit(pageSize).Offset(offset).Order(order).Find(&problems).Error
+		err = queryDB.Order(order).Find(&problems).Error
 	} else {
-		err = db.Preload("Tags").Limit(pageSize).Offset(offset).Find(&problems).Error
+		err = queryDB.Find(&problems).Error
 	}
 	// error handle
 	if mysql.ErrorHandleAndLog(c, err, true,
@@ -118,14 +121,18 @@ func GetAllProblems(c *gin.Context, page, pageSize int, order string, of string,
 	return problems, nil
 }
 
-func GetProblem(c *gin.Context, id int) (*model.Problem, error) {
+func GetProblem(c *gin.Context, id int, forUpdate bool) (*model.Problem, error) {
 	ctx := c.Request.Context()
 	db := otgrom.SetSpanToGorm(ctx, gbl.DB)
 	problem := model.Problem{}
 	myID := auth.GetUserFromJWT(c).ID
 
 	// get problem
-	err := db.Preload("Tags").Preload("ProblemSamples").First(&problem, id).Error
+	queryDB := db.Preload("Tags").Preload("ProblemSamples").Preload("ProblemTestCases").
+		Preload("UpVoteUsers", "attitude = ?", model.Up).
+		Preload("DownVoteUsers", "attitude = ?", model.Down)
+
+	err := queryDB.First(&problem, id).Error
 	if mysql.ErrorHandleAndLog(c, err, true, "get problem", id) != mysql.Success {
 		return nil, err
 	}
@@ -148,6 +155,20 @@ func GetProblem(c *gin.Context, id int) (*model.Problem, error) {
 		if _, err := GetGroup(c, problem.BelongToID); err == nil {
 			return &problem, nil
 		}
+	}
+
+	// when set forupdate flag
+	isOwner := false
+	if forUpdate {
+		// if user is the owner of problem,
+		// return test case
+		if err := checkProblemOwner(c, &problem); err == nil {
+			isOwner = true
+		}
+	}
+	if !isOwner {
+		// if user not owner , clear test case
+		problem.ProblemTestCases = []model.ProblemTestCase{}
 	}
 
 	log.For(ctx).Error("user no permission to access problem", zap.Int("problemID", id))
@@ -431,7 +452,7 @@ func UpdateProblem(c *gin.Context, newProblem *model.Problem) error {
 	db := otgrom.SetSpanToGorm(ctx, gbl.DB)
 
 	// check if problem exist
-	oldProblem, err := GetProblem(c, newProblem.ID)
+	oldProblem, err := GetProblem(c, newProblem.ID, false)
 	if err != nil {
 		return err
 	}
@@ -557,3 +578,29 @@ func checkProblemOwner(c *gin.Context, problem *model.Problem) error {
 //
 //	return nil
 //}
+
+// vote for problem
+func VoteProblem(c *gin.Context, id int, attitude int) error {
+	ctx := c.Request.Context()
+	db := otgrom.SetSpanToGorm(ctx, gbl.DB)
+	myID := auth.GetUserFromJWT(c).ID
+
+	// check if problem exist
+	if _, err := GetProblem(c, id, false); err != nil {
+		return err
+	}
+
+	vote := model.UserVoteProblem{
+		UserID:    myID,
+		ProblemID: id,
+		Attitude:  attitude,
+	}
+
+	err := db.Save(&vote).Error
+	if mysql.ErrorHandleAndLog(c, err, true,
+		"user vote for problem", id) != mysql.Success {
+		return err
+	}
+
+	return nil
+}

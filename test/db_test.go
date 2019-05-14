@@ -108,4 +108,9 @@ select distinct p.* from problem as p,user as u,user_in_group as up,user_in_cont
 	err = db.Raw("delete from problem_has_tag as t where t.tag_id = 22 and t.problem_id = 32").Error
 	err = db.First(&problem, 100).Error
 	t.Log(err)
+
+	problem1 := model.Problem{}
+	err = db.Preload("UpVoteUsers", "is_ok = ?", true).Preload("DownVoteUsers", "is_ok = ?", false).
+		First(&problem1, 10).Error
+	t.Log(kjson.MarshalString(&problem1))
 }

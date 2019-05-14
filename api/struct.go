@@ -19,3 +19,7 @@ type uuidArg struct {
 type joinArg struct {
 	Password string `json:"password"`
 }
+
+type QueryExtraArg struct {
+	ForUpdate bool `json:"for_update" form:"for_update"`
+}
