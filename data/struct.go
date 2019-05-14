@@ -28,3 +28,9 @@ type ContestWrap struct {
 	NeedPassword bool   `json:"need_password"`
 	Password     string `json:"-"`
 }
+
+type SubmitArg struct {
+	ProblemID  int
+	SourceCode string `json:"source_code" binding:"required"`
+	Language   int    `json:"language" binding:"exists,oneof=0 1 2 3"`
+}

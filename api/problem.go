@@ -3,6 +3,8 @@ package api
 import (
 	"net/http"
 
+	"github.com/si9ma/KillOJ-backend/data"
+
 	"github.com/si9ma/KillOJ-common/model"
 
 	"github.com/si9ma/KillOJ-backend/srv"
@@ -24,6 +26,9 @@ func SetupProblem(r *gin.Engine) {
 	auth.AuthGroup.POST("/problems", AddProblem)
 	auth.AuthGroup.PUT("/problems/problem/:id", UpdateProblem)
 	auth.AuthGroup.GET("/problems/problem/:id/vote", VoteProblem)
+	auth.AuthGroup.POST("/problems/problem/:id/submit", Submit)
+	auth.AuthGroup.GET("/problems/problem/:id/lastsubmit", GetLastSubmit)
+	auth.AuthGroup.GET("/problems/problem/:id/result", GetResult)
 	//auth.AuthProblem.DELETE("/problems/:id", DeleteProblem)
 }
 
@@ -135,4 +140,70 @@ func VoteProblem(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, nil)
+}
+
+func Submit(c *gin.Context) {
+	ctx := c.Request.Context()
+	submit := data.SubmitArg{}
+	uriArg := QueryArg{}
+
+	// bind uri params
+	if !wrap.ShouldBind(c, &uriArg, true) {
+		return
+	}
+
+	// bind request params
+	if !wrap.ShouldBind(c, &submit, false) {
+		return
+	}
+
+	submit.ProblemID = uriArg.ID
+	if err := srv.Submit(c, &submit); err != nil {
+		log.For(ctx).Error("submit code", zap.Error(err), zap.Int("problemId", uriArg.ID))
+		return
+	}
+
+	c.JSON(http.StatusOK, submit)
+}
+
+func GetLastSubmit(c *gin.Context) {
+	ctx := c.Request.Context()
+	arg := getSubmitArg{}
+	uriArg := QueryArg{}
+
+	// bind uri params
+	if !wrap.ShouldBind(c, &uriArg, true) {
+		return
+	}
+
+	// bind request params
+	if !wrap.ShouldBind(c, &arg, false) {
+		return
+	}
+
+	submit, err := srv.GetLastSubmit(c, uriArg.ID, arg.Success, true)
+	if err != nil {
+		log.For(ctx).Error("get last submit fail", zap.Error(err), zap.Int("problemId", uriArg.ID))
+		return
+	}
+
+	c.JSON(http.StatusOK, submit)
+}
+
+func GetResult(c *gin.Context) {
+	ctx := c.Request.Context()
+	uriArg := QueryArg{}
+
+	// bind uri params
+	if !wrap.ShouldBind(c, &uriArg, true) {
+		return
+	}
+
+	result, err := srv.GetResult(c, uriArg.ID)
+	if err != nil {
+		log.For(ctx).Error("get result for submit fail", zap.Error(err), zap.Int("problemId", uriArg.ID))
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
 }

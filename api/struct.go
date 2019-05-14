@@ -23,3 +23,7 @@ type joinArg struct {
 type QueryExtraArg struct {
 	ForUpdate bool `json:"for_update" form:"for_update"`
 }
+
+type getSubmitArg struct {
+	Success bool `json:"success" form:"success"`
+}

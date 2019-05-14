@@ -2,6 +2,21 @@ package srv
 
 import (
 	"fmt"
+	"strconv"
+	"time"
+
+	"github.com/si9ma/KillOJ-common/kjson"
+
+	"github.com/si9ma/KillOJ-common/constants"
+
+	"github.com/si9ma/KillOJ-common/kredis"
+
+	"github.com/si9ma/KillOJ-common/judge"
+
+	"github.com/RichardKnop/machinery/v1/tasks"
+	"github.com/opentracing/opentracing-go"
+
+	"github.com/si9ma/KillOJ-backend/data"
 
 	"github.com/jinzhu/gorm"
 
@@ -16,6 +31,8 @@ import (
 	otgrom "github.com/smacker/opentracing-gorm"
 	"go.uber.org/zap"
 )
+
+const UserProblemSubmitIsCompletePrefix = "killoj_user_problem_submit_is_complete_"
 
 const (
 	noOfSql = `
@@ -603,4 +620,188 @@ func VoteProblem(c *gin.Context, id int, attitude int) error {
 	}
 
 	return nil
+}
+
+// submit answer
+func Submit(c *gin.Context, submitArg *data.SubmitArg) error {
+	ctx := c.Request.Context()
+	db := otgrom.SetSpanToGorm(ctx, gbl.DB)
+	redisCli := kredis.WrapRedisClient(ctx, gbl.Redis)
+	myID := auth.GetUserFromJWT(c).ID
+
+	// check if problem exist
+	if _, err := GetProblem(c, submitArg.ProblemID, false); err != nil {
+		return err
+	}
+
+	// check if user have running task
+	k := UserProblemSubmitIsCompletePrefix + strconv.Itoa(myID) + "_" + strconv.Itoa(submitArg.ProblemID)
+	err := redisCli.Get(k).Err()
+	res := kredis.ErrorHandleAndLog(c, err, false,
+		"check if user has running submit", k, nil)
+	switch res {
+	case kredis.Success:
+		log.For(ctx).Error("user already have running submit", zap.Int("problemID", submitArg.ProblemID))
+		_ = c.Error(err).SetType(gin.ErrorTypePublic).SetMeta(kerror.ErrHaveRunningTask)
+		return kerror.EmptyError
+	case kredis.DB_ERROR:
+		return err
+	case kredis.NotFound:
+		break // continue
+	}
+
+	submit := model.Submit{
+		ProblemID:  submitArg.ProblemID,
+		UserID:     myID,
+		SourceCode: submitArg.SourceCode,
+		Language:   submitArg.Language,
+	}
+
+	err = db.Save(&submit).Error
+	if mysql.ErrorHandleAndLog(c, err, true,
+		"save user submit", submitArg.ProblemID) != mysql.Success {
+		return err
+	}
+
+	//// submit to judger
+	//if err := submit2Judger(c, submit.ID); err != nil {
+	//	return err
+	//}
+
+	// save redis
+	err = redisCli.Set(k, false, time.Hour).Err()
+	if res := kredis.ErrorHandleAndLog(c, err, true,
+		"save user submit to redis", k, nil); res != kredis.Success {
+		return err
+	}
+
+	return nil
+}
+
+// submit to judger
+func submit2Judger(c *gin.Context, submitID int) error {
+	bgCtx := c.Request.Context()
+	span, ctx := opentracing.StartSpanFromContext(bgCtx, "sendTask")
+	defer span.Finish()
+
+	judgeTask := tasks.Signature{
+		Name: "judge",
+		Args: []tasks.Arg{
+			{
+				Name:  "submitId",
+				Type:  "int",
+				Value: submitID,
+			},
+		},
+	}
+
+	if _, err := gbl.MachineryServer.SendTaskWithContext(ctx, &judgeTask); err != nil {
+		log.For(ctx).Error("send async job fail", zap.Error(err), zap.Int("submitID", submitID))
+		wrap.SetInternalServerError(c, err)
+		return err
+	}
+
+	return nil
+}
+
+// get last submit,
+// is set success flag,
+// return lease successful submit
+func GetLastSubmit(c *gin.Context, id int, needSuccess bool, needComplete bool) (*model.Submit, error) {
+	ctx := c.Request.Context()
+	db := otgrom.SetSpanToGorm(ctx, gbl.DB)
+
+	// check if problem exist
+	if _, err := GetProblem(c, id, false); err != nil {
+		return nil, err
+	}
+
+	submit := model.Submit{}
+	queryDB := db.Where("problem_id = ?", id)
+	if needComplete {
+		queryDB = queryDB.Where("is_complete = ?", true)
+	}
+	if needSuccess {
+		// query last successful result
+		queryDB = queryDB.Where("result = ?", judge.AcceptedStatus.Code)
+	}
+	err := queryDB.Last(&submit).Error
+	if mysql.ErrorHandleAndLog(c, err, true,
+		"get last user submit", "last submit") != mysql.Success {
+		return nil, err
+	}
+
+	return &submit, nil
+}
+
+// get result
+func GetResult(c *gin.Context, problemID int) (*judge.OuterResult, error) {
+	ctx := c.Request.Context()
+	redisCli := kredis.WrapRedisClient(ctx, gbl.Redis)
+	myID := auth.GetUserFromJWT(c).ID
+
+	// check if problem exist
+	if _, err := GetProblem(c, problemID, false); err != nil {
+		return nil, err
+	}
+
+	// check if user have task
+	k := UserProblemSubmitIsCompletePrefix + strconv.Itoa(myID) + "_" + strconv.Itoa(problemID)
+	res, err := redisCli.Get(k).Result()
+	r := kredis.ErrorHandleAndLog(c, err, false,
+		"check if user has running submit", k, nil)
+	switch r {
+	case kredis.Success:
+		break // continue
+	case kredis.DB_ERROR:
+		return nil, err
+	case kredis.NotFound:
+		log.For(ctx).Error("no result for problem", zap.Int("problemID", problemID))
+		arg := fmt.Sprintf("submit for %d", problemID)
+		_ = c.Error(err).SetType(gin.ErrorTypePublic).
+			SetMeta(kerror.ErrNotFound.WithArgs(arg))
+		return nil, err
+	}
+
+	isComplete := false
+	if isComplete, err = strconv.ParseBool(res); err != nil {
+		log.For(ctx).Error("parse is complete redis result fail", zap.Error(err))
+		wrap.SetInternalServerError(c, err)
+		return nil, err
+	}
+
+	// task haven't complete
+	if !isComplete {
+		log.For(ctx).Info("submit haven't complete", zap.Int("problemID", problemID))
+		_ = c.Error(kerror.EmptyError).SetType(gin.ErrorTypePublic).
+			SetMeta(kerror.ErrNotComplete)
+		return nil, kerror.EmptyError
+	}
+
+	// get last submit
+	submit, err := GetLastSubmit(c, problemID, false, true)
+	if err != nil {
+		wrap.DiscardGinError(c)
+		wrap.SetInternalServerError(c, err)
+		return nil, err
+	}
+
+	// get result
+	k = constants.SubmitStatusKeyPrefix + strconv.Itoa(submit.ID)
+	res, err = redisCli.Get(k).Result()
+	r = kredis.ErrorHandleAndLog(c, err, false,
+		"get run result of problem", k, submit.ID)
+	if r != kredis.Success {
+		wrap.SetInternalServerError(c, err)
+		return nil, err
+	}
+
+	result := judge.OuterResult{}
+	if err := kjson.UnmarshalString(res, &result); err != nil {
+		log.For(ctx).Error("unmarshal result to result fail", zap.Error(err), zap.Int("problemID", problemID))
+		wrap.SetInternalServerError(c, err)
+		return nil, err
+	}
+
+	return &result, nil
 }
