@@ -12,7 +12,7 @@ func requireWhenFieldNotEmpty(
 	v *validator.Validate, topStruct reflect.Value, currentStructOrField reflect.Value,
 	field reflect.Value, fieldType reflect.Type, fieldKind reflect.Kind, param string,
 ) bool {
-	f := currentStructOrField.FieldByName(param)
+	f := reflect.Indirect(currentStructOrField).FieldByName(param)
 	if !utils.IsZeroOfUnderlyingType(f.Interface()) {
 		return !utils.IsZeroOfUnderlyingType(field.Interface())
 	}

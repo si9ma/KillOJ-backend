@@ -17,27 +17,96 @@ import (
 	"go.uber.org/zap"
 )
 
-func GetAllProblems(c *gin.Context, page, pageSize int, order string) ([]model.Problem, error) {
-	var err error
+const (
+	noOfSql = `
+		select distinct p.* from problem as p,user_in_group as up,user_in_contest as uc 
+		where 
+			p.belong_type = 0 or
+			p.owner_id = ? or
+			(p.belong_type = 1 and up.user_id = ? and p.belong_to_id = up.group_id) or
+			(p.belong_type = 2 and up.user_id = ? and p.belong_to_id = uc.contest_id)
+		`
+	ofTagSql = `
+		select distinct p.* from problem as p,user_in_group as up,user_in_contest as uc,problem_has_tag as pt 
+		where
+		pt.problem_id = p.id and
+		pt.tag_id = ? and
+		(
+			p.belong_type = 0 or
+			p.owner_id = ? or
+			(p.belong_type = 1 and up.user_id = ? and p.belong_to_id = up.group_id) or
+			(p.belong_type = 2 and up.user_id = ? and p.belong_to_id = uc.contest_id)
+		)
+		`
+)
+
+func GetAllProblemsOfGroup(c *gin.Context, id int) (*gorm.DB, error) {
+	ctx := c.Request.Context()
+	db := otgrom.SetSpanToGorm(ctx, gbl.DB)
+
+	_, err := GetGroup(c, id)
+	if err != nil {
+		return nil, err
+	}
+
+	return db.Joins("join `group` on `group`.id = problem.belong_to_id and problem.belong_type = 1"), nil
+}
+
+func GetAllProblemsOfContest(c *gin.Context, id int) (*gorm.DB, error) {
+	ctx := c.Request.Context()
+	db := otgrom.SetSpanToGorm(ctx, gbl.DB)
+
+	_, err := GetContest(c, id)
+	if err != nil {
+		return nil, err
+	}
+
+	return db.Joins("join contest on contest.id = problem.belong_to_id and problem.belong_type = 2"), nil
+}
+
+func GetAllProblemsOfTag(c *gin.Context, id int) *gorm.DB {
 	ctx := c.Request.Context()
 	db := otgrom.SetSpanToGorm(ctx, gbl.DB)
 	myID := auth.GetUserFromJWT(c).ID
-	offset := (page - 1) * pageSize
-	rawsql := `
-		select distinct p.* from problem as p,user as u,user_in_group as up,user_in_contest as uc 
-		where u.id = ? and
-		(
-			p.belong_type = 0 or
-			u.id = p.owner_id or
-			(p.belong_type = 1 and u.id = up.user_id and p.belong_to_id = up.group_id) or
-			(p.belong_type = 2 and u.id = up.user_id and p.belong_to_id = uc.contest_id)
-		)
-	`
+
+	return db.Raw(ofTagSql, id, myID, myID, myID)
+}
+
+func GetAllProblemsOf(c *gin.Context) *gorm.DB {
+	ctx := c.Request.Context()
+	db := otgrom.SetSpanToGorm(ctx, gbl.DB)
+	myID := auth.GetUserFromJWT(c).ID
+
+	return db.Raw(noOfSql, myID, myID, myID)
+}
+
+func GetAllProblems(c *gin.Context, page, pageSize int, order string, of string, id int) ([]model.Problem, error) {
+	var err error
 	var problems []model.Problem
+	var db *gorm.DB
+
+	ctx := c.Request.Context()
+	offset := (page - 1) * pageSize
+
+	switch of {
+	case "group":
+		db, err = GetAllProblemsOfGroup(c, id)
+	case "contest":
+		db, err = GetAllProblemsOfContest(c, id)
+	case "tag":
+		db = GetAllProblemsOfTag(c, id)
+	default:
+		db = GetAllProblemsOf(c)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
 	if order != "" {
-		err = db.Preload("Tags").Raw(rawsql, myID).Limit(pageSize).Offset(offset).Order(order).Find(&problems).Error
+		err = db.Preload("Tags").Limit(pageSize).Offset(offset).Order(order).Find(&problems).Error
 	} else {
-		err = db.Preload("Tags").Raw(rawsql, myID).Limit(pageSize).Offset(offset).Find(&problems).Error
+		err = db.Preload("Tags").Limit(pageSize).Offset(offset).Find(&problems).Error
 	}
 	// error handle
 	if mysql.ErrorHandleAndLog(c, err, true,

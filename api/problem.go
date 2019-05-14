@@ -36,7 +36,7 @@ func GetAllProblems(c *gin.Context) {
 		return
 	}
 
-	problems, err := srv.GetAllProblems(c, arg.Page, arg.PageSize, arg.Order)
+	problems, err := srv.GetAllProblems(c, arg.Page, arg.PageSize, arg.Order, arg.Of, arg.ID)
 	if err != nil {
 		log.For(ctx).Error("get problems fail", zap.Error(err))
 		return
