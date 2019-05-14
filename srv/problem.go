@@ -146,6 +146,7 @@ func GetProblem(c *gin.Context, id int, forUpdate bool) (*model.Problem, error) 
 
 	// get problem
 	queryDB := db.Preload("Tags").Preload("ProblemSamples").Preload("ProblemTestCases").
+		Preload("Comments").Preload("Comments.User"). // comments
 		Preload("UpVoteUsers", "attitude = ?", model.Up).
 		Preload("DownVoteUsers", "attitude = ?", model.Down)
 
@@ -804,4 +805,43 @@ func GetResult(c *gin.Context, problemID int) (*judge.OuterResult, error) {
 	}
 
 	return &result, nil
+}
+
+func Comment4Problem(c *gin.Context, commentArg *data.CommentArg) error {
+	ctx := c.Request.Context()
+	db := otgrom.SetSpanToGorm(ctx, gbl.DB)
+	myID := auth.GetUserFromJWT(c).ID
+
+	// check if problem exist
+	if _, err := GetProblem(c, commentArg.ProblemID, false); err != nil {
+		return err
+	}
+
+	// reply
+	if commentArg.ParentID != 0 {
+		// check if parent comment exist
+		comment := model.Comment{}
+		err := db.Where("problem_id = ? AND id = ?",
+			commentArg.ProblemID, commentArg.ParentID).First(&comment).Error
+		arg := fmt.Sprintf("comment %d", commentArg.ParentID)
+		if mysql.ErrorHandleAndLog(c, err, true,
+			"check if comment exist", arg) != mysql.Success {
+			return err
+		}
+	}
+
+	comment := model.Comment{
+		ProblemID: commentArg.ProblemID,
+		UserID:    myID,
+		ParentID:  commentArg.ParentID,
+		Content:   commentArg.Content,
+	}
+
+	err := db.Save(&comment).Error
+	if mysql.ErrorHandleAndLog(c, err, true,
+		"save comment", commentArg.ParentID) != mysql.Success {
+		return err
+	}
+
+	return nil
 }

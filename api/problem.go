@@ -29,6 +29,7 @@ func SetupProblem(r *gin.Engine) {
 	auth.AuthGroup.POST("/problems/problem/:id/submit", Submit)
 	auth.AuthGroup.GET("/problems/problem/:id/lastsubmit", GetLastSubmit)
 	auth.AuthGroup.GET("/problems/problem/:id/result", GetResult)
+	auth.AuthGroup.POST("/problems/problem/:id/comment", Comment4Problem)
 	//auth.AuthProblem.DELETE("/problems/:id", DeleteProblem)
 }
 
@@ -206,4 +207,28 @@ func GetResult(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, result)
+}
+
+func Comment4Problem(c *gin.Context) {
+	ctx := c.Request.Context()
+	uriArg := QueryArg{}
+	commentArg := data.CommentArg{}
+
+	// bind uri params
+	if !wrap.ShouldBind(c, &uriArg, true) {
+		return
+	}
+
+	// bind commentArg
+	if !wrap.ShouldBind(c, &commentArg, false) {
+		return
+	}
+
+	commentArg.ProblemID = uriArg.ID
+	if err := srv.Comment4Problem(c, &commentArg); err != nil {
+		log.For(ctx).Error("add new comment fail", zap.Error(err), zap.Int("problemId", uriArg.ID))
+		return
+	}
+
+	c.JSON(http.StatusOK, commentArg)
 }

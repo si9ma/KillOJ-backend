@@ -34,3 +34,9 @@ type SubmitArg struct {
 	SourceCode string `json:"source_code" binding:"required"`
 	Language   int    `json:"language" binding:"exists,oneof=0 1 2 3"`
 }
+
+type CommentArg struct {
+	ProblemID int
+	Content   string `json:"content" binding:"required"`
+	ParentID  int    `json:"parent_id"`
+}
