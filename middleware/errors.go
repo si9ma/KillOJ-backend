@@ -38,6 +38,8 @@ func validationErrorToText(e *validator.FieldError) string {
 		return fmt.Sprintf(tip.ValidateMinTip.String(), word, e.Param)
 	case "oneof":
 		return fmt.Sprintf(tip.OneOfTip.String(), word, e.Param)
+	case "requiredwhenfield":
+		return fmt.Sprintf(tip.RequiredWhenFieldNotEmptyTip.String(), e.Param, word)
 
 	// excludes
 	case "excludesrune":

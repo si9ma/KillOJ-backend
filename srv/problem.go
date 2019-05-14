@@ -180,26 +180,30 @@ func AddProblem(c *gin.Context, newProblem *model.Problem) error {
 func deleteTags(c *gin.Context, problem *model.Problem) error {
 	ctx := c.Request.Context()
 	db := otgrom.SetSpanToGorm(ctx, gbl.DB)
-	var deleteTags []model.Tag
+	var deleteTagIDs []int
+	var remainTags []model.Tag
 
 	for _, tag := range problem.Tags {
 		if tag.DeleteIt {
-			deleteTags = append(deleteTags, tag)
+			deleteTagIDs = append(deleteTagIDs, tag.ID)
+		} else {
+			remainTags = append(remainTags, tag)
 		}
 	}
 
 	// no tag need be deleted
-	if len(deleteTags) == 0 {
+	if len(deleteTagIDs) == 0 {
 		log.For(ctx).Info("no tag need delete", zap.Int("problemID", problem.ID))
 		return nil
 	}
 
-	err := db.Model(problem).Association("Tags").Delete(deleteTags).Error
+	err := db.Where("tag_id in (?) AND problem_id = ?", deleteTagIDs, problem.ID).Delete(&model.ProblemHasTag{}).Error
 	if mysql.ErrorHandleAndLog(c, err, true,
 		"delete tags for problem", problem.ID) != mysql.Success {
 		return err
 	}
 
+	problem.Tags = remainTags
 	return nil
 }
 

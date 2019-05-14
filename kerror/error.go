@@ -66,7 +66,7 @@ func (r ErrResponse) MarshalJSON() ([]byte, error) {
 
 	// add Extra field
 	if r.Extra != nil {
-		res = append(res, []byte(`,"Extra":`)...)
+		res = append(res, []byte(`,"extra":`)...)
 		if val, err := json.Marshal(r.Extra); err != nil {
 			return nil, err
 		} else {

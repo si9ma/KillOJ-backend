@@ -8,5 +8,6 @@ import (
 func SetupValidator() {
 	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
 		v.RegisterValidation("oneof", oneOf)
+		v.RegisterValidation("requiredwhenfield", requireWhenFieldNotEmpty)
 	}
 }
