@@ -3,6 +3,8 @@ package api
 import (
 	"net/http"
 
+	"github.com/si9ma/KillOJ-backend/kerror"
+
 	"github.com/si9ma/KillOJ-backend/data"
 
 	"github.com/si9ma/KillOJ-common/model"
@@ -83,6 +85,15 @@ func AddProblem(c *gin.Context) {
 
 	// bind
 	if !wrap.ShouldBind(c, &newProblem, false) {
+		return
+	}
+
+	// at least one test case
+	if len(newProblem.ProblemTestCases) == 0 {
+		log.For(ctx).Error("one problem at least have one test case")
+
+		_ = c.Error(kerror.EmptyError).SetType(gin.ErrorTypePublic).
+			SetMeta(kerror.ErrAtLeast.WithArgs(1, "test case"))
 		return
 	}
 

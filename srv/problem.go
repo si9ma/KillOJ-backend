@@ -417,6 +417,42 @@ func deleteTestCases(c *gin.Context, problem *model.Problem) error {
 	return nil
 }
 
+func atLeastOneTestCase(c *gin.Context, problem *model.Problem) error {
+	ctx := c.Request.Context()
+	db := otgrom.SetSpanToGorm(ctx, gbl.DB)
+
+	addHowManyCase := 0
+	for _, testCase := range problem.ProblemTestCases {
+		// delete it
+		if testCase.DeleteIt {
+			addHowManyCase--
+			continue
+		}
+
+		// add one
+		if testCase.ID == 0 {
+			addHowManyCase++
+		}
+	}
+
+	casesInDB := 0
+	err := db.Table("problem_test_case").Where("problem_id = ?", problem.ID).Count(&casesInDB).Error
+	if mysql.ErrorHandleAndLog(c, err, true,
+		"check how many test case for problem", problem.ID) != mysql.Success {
+		return err
+	}
+
+	if casesInDB+addHowManyCase <= 0 {
+		log.For(ctx).Error("one problem at least have one test case")
+
+		_ = c.Error(kerror.EmptyError).SetType(gin.ErrorTypePublic).
+			SetMeta(kerror.ErrAtLeast.WithArgs(1, "test case"))
+		return kerror.EmptyError
+	}
+
+	return nil
+}
+
 func checkTestCases(c *gin.Context, problem *model.Problem) error {
 	ctx := c.Request.Context()
 	db := otgrom.SetSpanToGorm(ctx, gbl.DB)
@@ -490,6 +526,11 @@ func UpdateProblem(c *gin.Context, newProblem *model.Problem) error {
 
 	// check if all test case exist
 	if err := checkTestCases(c, newProblem); err != nil {
+		return err
+	}
+
+	// at least one test case check
+	if err := atLeastOneTestCase(c, newProblem); err != nil {
 		return err
 	}
 

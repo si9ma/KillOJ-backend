@@ -39,6 +39,7 @@ var (
 	ErrAlreadyFinished             = ErrResponse{http.StatusBadRequest, 40007, tip.AlreadyFinishTip, nil}
 	ErrMustProvideWhenAnotherExist = ErrResponse{http.StatusBadRequest, 40008, tip.MustProvideWhenAnotherExistTip, nil}
 	ErrNotComplete                 = ErrResponse{http.StatusBadRequest, 40009, tip.TaskNotCompleteTip, nil}
+	ErrAtLeast                     = ErrResponse{http.StatusBadRequest, 40010, tip.AtLeastTip, nil}
 
 	// 401xx:
 	ErrUnauthorizedGeneral = ErrResponse{http.StatusUnauthorized, 40100, tip.UnauthorizedGeneralTip, nil}
