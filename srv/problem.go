@@ -32,8 +32,6 @@ import (
 	"go.uber.org/zap"
 )
 
-const UserProblemSubmitIsCompletePrefix = "killoj_user_problem_submit_is_complete_"
-
 const (
 	noOfSql = `
 		select distinct p.* from problem as p,user_in_group as up,user_in_contest as uc 
@@ -627,7 +625,7 @@ func VoteProblem(c *gin.Context, id int, attitude int) error {
 func Submit(c *gin.Context, submitArg *data.SubmitArg) error {
 	ctx := c.Request.Context()
 	db := otgrom.SetSpanToGorm(ctx, gbl.DB)
-	redisCli := kredis.WrapRedisClient(ctx, gbl.Redis)
+	redisCli := kredis.WrapRedisClusterClient(ctx, gbl.Redis)
 	myID := auth.GetUserFromJWT(c).ID
 
 	// check if problem exist
@@ -636,14 +634,14 @@ func Submit(c *gin.Context, submitArg *data.SubmitArg) error {
 	}
 
 	// check if user have running task
-	k := UserProblemSubmitIsCompletePrefix + strconv.Itoa(myID) + "_" + strconv.Itoa(submitArg.ProblemID)
+	k := constants.UserProblemSubmitIsCompletePrefix + strconv.Itoa(myID) + "_" + strconv.Itoa(submitArg.ProblemID)
 	err := redisCli.Get(k).Err()
 	res := kredis.ErrorHandleAndLog(c, err, false,
 		"check if user has running submit", k, nil)
 	switch res {
 	case kredis.Success:
 		log.For(ctx).Error("user already have running submit", zap.Int("problemID", submitArg.ProblemID))
-		_ = c.Error(err).SetType(gin.ErrorTypePublic).SetMeta(kerror.ErrHaveRunningTask)
+		_ = c.Error(kerror.EmptyError).SetType(gin.ErrorTypePublic).SetMeta(kerror.ErrHaveRunningTask)
 		return kerror.EmptyError
 	case kredis.DB_ERROR:
 		return err
@@ -664,10 +662,10 @@ func Submit(c *gin.Context, submitArg *data.SubmitArg) error {
 		return err
 	}
 
-	//// submit to judger
-	//if err := submit2Judger(c, submit.ID); err != nil {
-	//	return err
-	//}
+	// submit to judger
+	if err := submit2Judger(c, submit.ID); err != nil {
+		return err
+	}
 
 	// save redis
 	err = redisCli.Set(k, false, time.Hour).Err()
@@ -701,6 +699,7 @@ func submit2Judger(c *gin.Context, submitID int) error {
 		wrap.SetInternalServerError(c, err)
 		return err
 	}
+	log.For(ctx).Info("send async jos success", zap.Int("submitID", submitID))
 
 	return nil
 }
@@ -738,7 +737,7 @@ func GetLastSubmit(c *gin.Context, id int, needSuccess bool, needComplete bool) 
 // get result
 func GetResult(c *gin.Context, problemID int) (*judge.OuterResult, error) {
 	ctx := c.Request.Context()
-	redisCli := kredis.WrapRedisClient(ctx, gbl.Redis)
+	redisCli := kredis.WrapRedisClusterClient(ctx, gbl.Redis)
 	myID := auth.GetUserFromJWT(c).ID
 
 	// check if problem exist
@@ -747,10 +746,10 @@ func GetResult(c *gin.Context, problemID int) (*judge.OuterResult, error) {
 	}
 
 	// check if user have task
-	k := UserProblemSubmitIsCompletePrefix + strconv.Itoa(myID) + "_" + strconv.Itoa(problemID)
-	res, err := redisCli.Get(k).Result()
+	isCompleteKey := constants.UserProblemSubmitIsCompletePrefix + strconv.Itoa(myID) + "_" + strconv.Itoa(problemID)
+	res, err := redisCli.Get(isCompleteKey).Result()
 	r := kredis.ErrorHandleAndLog(c, err, false,
-		"check if user has running submit", k, nil)
+		"check if user has running submit", isCompleteKey, nil)
 	switch r {
 	case kredis.Success:
 		break // continue
@@ -788,10 +787,10 @@ func GetResult(c *gin.Context, problemID int) (*judge.OuterResult, error) {
 	}
 
 	// get result
-	k = constants.SubmitStatusKeyPrefix + strconv.Itoa(submit.ID)
-	res, err = redisCli.Get(k).Result()
+	resultKey := constants.SubmitStatusKeyPrefix + strconv.Itoa(submit.ID)
+	res, err = redisCli.Get(resultKey).Result()
 	r = kredis.ErrorHandleAndLog(c, err, false,
-		"get run result of problem", k, submit.ID)
+		"get run result of problem", resultKey, submit.ID)
 	if r != kredis.Success {
 		wrap.SetInternalServerError(c, err)
 		return nil, err
@@ -801,6 +800,18 @@ func GetResult(c *gin.Context, problemID int) (*judge.OuterResult, error) {
 	if err := kjson.UnmarshalString(res, &result); err != nil {
 		log.For(ctx).Error("unmarshal result to result fail", zap.Error(err), zap.Int("problemID", problemID))
 		wrap.SetInternalServerError(c, err)
+		return nil, err
+	}
+
+	// return result and delete redis key
+	err = redisCli.Del(isCompleteKey).Err()
+	if kredis.ErrorHandleAndLog(c, err, true,
+		"remove the run result of submit", isCompleteKey, nil) != kredis.Success {
+		return nil, err
+	}
+	err = redisCli.Del(resultKey).Err()
+	if kredis.ErrorHandleAndLog(c, err, true,
+		"remove the run result of submit", resultKey, nil) != kredis.Success {
 		return nil, err
 	}
 

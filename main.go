@@ -41,7 +41,7 @@ func init() {
 		}
 
 		// setup Router
-		r := setupRouter()
+		r := setupRouter(cfg)
 		if err := r.Run(cfg.App.Addr()); err != nil {
 			log.Bg().Fatal("run backend fail", zap.Error(err))
 			return err
@@ -67,10 +67,11 @@ func init() {
 		}
 
 		// close tracer
-		if err = gbl.TracerCloser.Close(); err != nil {
-			log.Bg().Error("close tracer fail", zap.Error(err))
+		if gbl.TracerCloser != nil {
+			if err = gbl.TracerCloser.Close(); err != nil {
+				log.Bg().Error("close tracer fail", zap.Error(err))
+			}
 		}
-
 		return err
 	}
 }

@@ -16,8 +16,9 @@ import (
 var DB *gorm.DB
 
 // redis
-//var Redis *redis.ClusterClient
-var Redis *redis.Client // for test
+var Redis *redis.ClusterClient
+
+//var Redis *redis.Client // for test
 
 // tracer
 var Tracer opentracing.Tracer

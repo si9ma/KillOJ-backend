@@ -6,6 +6,8 @@ import (
 
 	"github.com/si9ma/KillOJ-common/asyncjob"
 
+	"github.com/si9ma/KillOJ-common/kredis"
+
 	"github.com/si9ma/KillOJ-backend/gbl"
 
 	"github.com/opentracing/opentracing-go"
@@ -25,12 +27,6 @@ const serviceName = "backend"
 // init configuration
 func Init(cfgPath string) (cfg *config.Config, err error) {
 	var pwd string
-
-	// init asyncjob server
-	if gbl.MachineryServer, err = asyncjob.Init(cfg.AsyncJob); err != nil {
-		log.Bg().Error("Init asyncjob server fail", zap.Error(err))
-		return nil, err
-	}
 
 	// get log path ( create parent directory is parent directory not exist)
 	logPath, err := utils.MkDirAll4RelativePath(logFilePath)
@@ -67,6 +63,12 @@ func Init(cfgPath string) (cfg *config.Config, err error) {
 		}
 	}
 
+	// init asyncjob server
+	if gbl.MachineryServer, err = asyncjob.Init(cfg.AsyncJob); err != nil {
+		log.Bg().Error("Init asyncjob server fail", zap.Error(err))
+		return nil, err
+	}
+
 	// init tracer
 	gbl.Tracer, gbl.TracerCloser = tracing.NewTracer(serviceName)
 	opentracing.SetGlobalTracer(gbl.Tracer)
@@ -77,11 +79,11 @@ func Init(cfgPath string) (cfg *config.Config, err error) {
 		return nil, err
 	}
 
-	//// init redis
-	//if gbl.Redis, err = kredis.Init(cfg.Redis); err != nil {
-	//	log.Bg().Error("Init redis fail", zap.Error(err))
-	//	return nil, err
-	//}
+	// init redis
+	if gbl.Redis, err = kredis.Init(cfg.Redis); err != nil {
+		log.Bg().Error("Init redis fail", zap.Error(err))
+		return nil, err
+	}
 
 	return cfg, nil
 }

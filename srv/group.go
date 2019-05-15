@@ -224,7 +224,7 @@ func checkGroupOwner(c *gin.Context, group *model.Group) error {
 
 func GetGroupInviteInfo(c *gin.Context, groupID int) (*data.GroupInviteData, error) {
 	ctx := c.Request.Context()
-	redisCli := kredis.WrapRedisClient(ctx, gbl.Redis)
+	redisCli := kredis.WrapRedisClusterClient(ctx, gbl.Redis)
 
 	// check if group exist
 	group, err := GetGroup(c, groupID)
@@ -256,7 +256,7 @@ func GetGroupInviteInfo(c *gin.Context, groupID int) (*data.GroupInviteData, err
 
 func Invite2Group(c *gin.Context, inviteData *data.GroupInviteData) (err error) {
 	ctx := c.Request.Context()
-	redisCli := kredis.WrapRedisClient(ctx, gbl.Redis)
+	redisCli := kredis.WrapRedisClusterClient(ctx, gbl.Redis)
 
 	d, err := GetGroupInviteInfo(c, inviteData.GroupID)
 	if err != nil && err == redis.Nil {
@@ -313,7 +313,7 @@ func Invite2Group(c *gin.Context, inviteData *data.GroupInviteData) (err error) 
 // return value:
 func GetGroupInviteData(c *gin.Context, inviteId string) (*data.GroupInviteData, error) {
 	ctx := c.Request.Context()
-	redisCli := kredis.WrapRedisClient(ctx, gbl.Redis)
+	redisCli := kredis.WrapRedisClusterClient(ctx, gbl.Redis)
 
 	// check if inviteId available
 	k := GroupInvitePrefix + inviteId

@@ -277,7 +277,7 @@ func CheckPermission(c *gin.Context, groups []int, anyOne bool) error {
 
 func GetContestInviteInfo(c *gin.Context, contestID int) (*data.ContestInviteData, error) {
 	ctx := c.Request.Context()
-	redisCli := kredis.WrapRedisClient(ctx, gbl.Redis)
+	redisCli := kredis.WrapRedisClusterClient(ctx, gbl.Redis)
 
 	// check if contest exist
 	contest, err := GetContest(c, contestID)
@@ -318,7 +318,7 @@ func GetContestInviteInfo(c *gin.Context, contestID int) (*data.ContestInviteDat
 
 func Invite2Contest(c *gin.Context, inviteData *data.ContestInviteData) (err error) {
 	ctx := c.Request.Context()
-	redisCli := kredis.WrapRedisClient(ctx, gbl.Redis)
+	redisCli := kredis.WrapRedisClusterClient(ctx, gbl.Redis)
 
 	d, err := GetContestInviteInfo(c, inviteData.ContestID)
 	if err != nil && err == redis.Nil {
@@ -387,7 +387,7 @@ func Invite2Contest(c *gin.Context, inviteData *data.ContestInviteData) (err err
 
 func GetContestInviteData(c *gin.Context, inviteId string) (*data.ContestInviteData, error) {
 	ctx := c.Request.Context()
-	redisCli := kredis.WrapRedisClient(ctx, gbl.Redis)
+	redisCli := kredis.WrapRedisClusterClient(ctx, gbl.Redis)
 
 	// check if inviteId available
 	k := ContestInvitePrefix + inviteId
