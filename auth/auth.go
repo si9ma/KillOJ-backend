@@ -31,7 +31,7 @@ import (
 )
 
 type login struct {
-	UserName string `json:"username" binding:"required"` // nick name or email
+	UserName string `json:"username" binding:"required"` // user name or email
 	Password string `json:"password" binding:"required"`
 }
 
@@ -186,11 +186,11 @@ func passwdAuthenticate(c *gin.Context) (interface{}, error) {
 		// username is email
 		err = db.Where("email = ?", loginVals.UserName).First(&user).Error
 	} else {
-		// username is nick name
-		err = db.Where("nick_name = ?", loginVals.UserName).First(&user).Error
+		// username is user name
+		err = db.Where("name = ?", loginVals.UserName).First(&user).Error
 	}
 	if res := mysql.ErrorHandleAndLog(c, err, false,
-		"get user by username(email/nick_name)", loginVals.UserName); res == mysql.NotFound {
+		"get user by username(email/name)", loginVals.UserName); res == mysql.NotFound {
 		log.For(ctx).Error("user not exist", zap.String("username", loginVals.UserName))
 
 		_ = c.Error(err).SetType(gin.ErrorTypePublic).

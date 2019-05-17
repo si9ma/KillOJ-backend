@@ -139,9 +139,9 @@ func UserInfoEdit(c *gin.Context) {
 			},
 		},
 		{
-			"nick_name": mysql.ValuePair{
-				NewVal: newUser.NickName,
-				OldVal: oldUser.NickName,
+			"name": mysql.ValuePair{
+				NewVal: newUser.Name,
+				OldVal: oldUser.Name,
 			},
 		},
 		{

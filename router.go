@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/si9ma/KillOJ-backend/validator"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/opentracing-contrib/go-gin/ginhttp"
 	"github.com/si9ma/KillOJ-backend/gbl"
 
+	"github.com/gin-contrib/cors"
 	"github.com/si9ma/KillOJ-backend/middleware"
 
 	"github.com/gin-gonic/gin"
@@ -26,6 +28,16 @@ func setupRouter(cfg *config.Config) *gin.Engine {
 
 	// error handle middleware
 	r.Use(middleware.Errors())
+
+	// cors
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"*"},
+		AllowMethods:     []string{"GET", "PUT", "POST", "DELETE", "PATCH", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "X-Requested-With", "Content-Type", "Accept", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}))
 
 	// set up auth
 	auth.SetupAuth(r)
