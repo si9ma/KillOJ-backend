@@ -25,8 +25,8 @@ func TestBackEnd(t *testing.T) {
 	if err != nil {
 		t.Fatal("setup router fail", err)
 	}
-	cfg := config.AppConfig{
-		Port: "8889",
+	cfg := config.AuthConfig{
+		CallbackBaseURL: "http://127.0.0.1:8081/auth3rd",
 	}
 
 	auth.SetupAuth(r)

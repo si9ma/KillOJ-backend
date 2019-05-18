@@ -41,7 +41,7 @@ func setupRouter(cfg *config.Config) *gin.Engine {
 
 	// set up auth
 	auth.SetupAuth(r)
-	auth.Setup3rdAuth(r, cfg.App)
+	auth.Setup3rdAuth(r, cfg.AuthConfig)
 
 	// setup custom validator
 	validator.SetupValidator()

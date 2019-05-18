@@ -1,9 +1,8 @@
 package auth
 
 import (
-	"fmt"
-	"net/http"
 	"os"
+	"strings"
 
 	"golang.org/x/net/context"
 
@@ -30,21 +29,25 @@ import (
 
 var supportProvider = []string{"github"}
 
-func Setup3rdAuth(r *gin.Engine, cfg config.AppConfig) {
+func Setup3rdAuth(r *gin.Engine, cfg config.AuthConfig) {
 	// use goauth,
 	// repo : https://github.com/markbates/goth
 	useGoAuth(r, cfg)
 }
 
-func useGoAuth(r *gin.Engine, cfg config.AppConfig) {
+func getCallback(cfg config.AuthConfig, provider string) string {
+	return strings.Join([]string{cfg.CallbackBaseURL, provider, "callback"}, "/")
+}
+
+func useGoAuth(r *gin.Engine, cfg config.AuthConfig) {
 	// set up session
 	key := os.Getenv(constants.EnvSessionSecret)
 	if key == "" {
 		log.Bg().Fatal("Please define environment", zap.String("env", constants.EnvSessionSecret))
 	}
 
-	maxAge := 24 * 3600 // 1 days
-	isProd := false     // Set to true when serving over https
+	maxAge := 60    // 1 minute
+	isProd := false // Set to true when serving over https
 
 	store := sessions.NewCookieStore([]byte(key))
 	store.MaxAge(maxAge)
@@ -54,7 +57,7 @@ func useGoAuth(r *gin.Engine, cfg config.AppConfig) {
 	gothic.Store = store
 
 	goth.UseProviders(
-		github.New(os.Getenv(constants.EnvGithubAuthKey), os.Getenv(constants.EnvGithubAuthSecret), utils.GetUrlRoot(cfg.Port)+"/auth3rd/github/callback"), // github
+		github.New(os.Getenv(constants.EnvGithubAuthKey), os.Getenv(constants.EnvGithubAuthSecret), getCallback(cfg, "github")), // github
 	)
 	r.GET("/auth3rd/:provider/callback", jwtMiddleware.LoginHandler) // integration 3rd auth to jwt
 	r.GET("/auth3rd/:provider", func(c *gin.Context) {
@@ -72,20 +75,21 @@ func useGoAuth(r *gin.Engine, cfg config.AppConfig) {
 		// Compatible with goauth
 		ctxWithProvider := context.WithValue(c.Request.Context(), "provider", provider)
 
-		// try to get the user without re-authenticating
-		if gothUser, err := gothic.CompleteUserAuth(c.Writer, c.Request.WithContext(ctxWithProvider)); err == nil {
-			log.For(ctx).Info("provider already auth", zap.String("provider", provider), zap.Error(err),
-				zap.String("userId", gothUser.Name))
-
-			// redirect to callback
-			redirectTo := fmt.Sprintf("/auth3rd/%s/callback", provider)
-			c.Redirect(http.StatusPermanentRedirect, redirectTo) // integration 3rd auth to jwt
-			return
-		} else {
-			log.For(ctx).Info("auth provider", zap.String("provider", provider))
-			gothic.BeginAuthHandler(c.Writer, c.Request.WithContext(ctxWithProvider)) // auth github
-			return
-		}
+		// todo remove this code, because some strange error
+		//// try to get the user without re-authenticating
+		//if gothUser, err := gothic.CompleteUserAuth(c.Writer, c.Request.WithContext(ctxWithProvider)); err == nil {
+		//	log.For(ctx).Info("provider already auth", zap.String("provider", provider), zap.Error(err),
+		//		zap.String("userId", gothUser.Name))
+		//
+		//	// redirect to callback
+		//	redirectTo := fmt.Sprintf("/auth3rd/%s/callback", provider)
+		//	c.Redirect(http.StatusPermanentRedirect, redirectTo) // integration 3rd auth to jwt
+		//	return
+		//} else {
+		log.For(ctx).Info("auth provider", zap.String("provider", provider))
+		gothic.BeginAuthHandler(c.Writer, c.Request.WithContext(ctxWithProvider)) // auth github
+		return
+		//}
 	})
 }
 

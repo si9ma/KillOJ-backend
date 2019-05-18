@@ -5,6 +5,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/jinzhu/gorm"
 	"github.com/si9ma/KillOJ-backend/wrap"
 
 	"github.com/markbates/goth/gothic"
@@ -31,8 +32,10 @@ import (
 )
 
 type login struct {
-	UserName string `json:"username" binding:"required"` // user name or email
-	Password string `json:"password" binding:"required"`
+	UserName   string `json:"name" binding:"required,max=100"` // user name or email
+	Password   string `json:"password" binding:"required,min=6,max=30"`
+	GithubID   string `json:"github_id"` // user name or email
+	GithubName string `json:"github_name"`
 }
 
 const (
@@ -224,13 +227,65 @@ func passwdAuthenticate(c *gin.Context) (interface{}, error) {
 
 				return "", jwt.ErrFailedAuthentication
 			}
-			log.For(ctx).Info("renew password success", zap.Error(err),
-				zap.Int("id", user.ID))
+			log.For(ctx).Info("renew password success", zap.Int("id", user.ID))
+		}
+
+		// if github name and github id not empty, binding to user
+		// todo There may be a bug here
+		if loginVals.GithubName != "" && loginVals.GithubID != "" {
+			if err := bindUser(c, user, loginVals.GithubName, loginVals.GithubID); err != nil {
+				return "", jwt.ErrFailedAuthentication
+			}
 		}
 	}
 
 	log.For(ctx).Info("authenticate user success", zap.String("username", loginVals.UserName))
 	return user, nil
+}
+
+func bindUser(c *gin.Context, oldUser model.User, githubName, githubID string) error {
+	ctx := c.Request.Context()
+	db := otgrom.SetSpanToGorm(ctx, gbl.DB)
+
+	newUser := oldUser
+	newUser.GithubName = githubName
+	newUser.GithubUserID = githubID
+
+	// unique check
+	// new value -- old value
+	uniqueCheckList := []map[string]mysql.ValuePair{
+		{
+			"github_user_id": mysql.ValuePair{
+				NewVal: newUser.GithubUserID,
+				OldVal: oldUser.GithubUserID,
+			},
+		},
+		{
+			"github_name": mysql.ValuePair{
+				NewVal: newUser.GithubName,
+				OldVal: oldUser.GithubName,
+			},
+		},
+	}
+
+	// check
+	for _, checkMap := range uniqueCheckList {
+		if !mysql.ShouldUnique(c, ctx, db, checkMap, func(db *gorm.DB) error {
+			return db.First(&model.User{}).Error
+		}) {
+			return kerror.EmptyError
+		}
+	}
+
+	if err := db.Model(&oldUser).Update("github_user_id", githubID, "github_name", githubName).Error; err != nil {
+		log.For(ctx).Error("binding user to github fail", zap.Error(err),
+			zap.Int("id", oldUser.ID))
+
+		_ = c.Error(err).SetType(gin.ErrorTypePrivate)
+		return kerror.EmptyError
+	}
+	log.For(ctx).Info("binding user to github success", zap.Int("id", oldUser.ID))
+	return nil
 }
 
 func GetUserFromJWT(c *gin.Context) model.User {
