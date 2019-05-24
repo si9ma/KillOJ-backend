@@ -113,4 +113,12 @@ select distinct p.* from problem as p,user as u,user_in_group as up,user_in_cont
 	err = db.Preload("UpVoteUsers", "is_ok = ?", true).Preload("DownVoteUsers", "is_ok = ?", false).
 		First(&problem1, 10).Error
 	t.Log(kjson.MarshalString(&problem1))
+
+	u := model.User{}
+	err = db.Preload("Theme").First(&u, 36).Error
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Log(kjson.MarshalString(&u))
 }

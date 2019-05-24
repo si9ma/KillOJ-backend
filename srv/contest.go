@@ -56,11 +56,11 @@ func GetAllContests(c *gin.Context, page, pageSize int, order string) ([]model.C
 	if order != "" {
 		err = db.Preload("Contests", func(db *gorm.DB) *gorm.DB {
 			return db.Order(order).Offset(offset).Limit(pageSize)
-		}).First(&user).Error
+		}).Preload("Contests.Owner").First(&user).Error
 	} else {
 		err = db.Preload("Contests", func(db *gorm.DB) *gorm.DB {
 			return db.Offset(offset).Limit(pageSize)
-		}).First(&user).Error
+		}).Preload("Contests.Owner").First(&user).Error
 	}
 
 	// error handle
@@ -81,7 +81,7 @@ func GetContest(c *gin.Context, id int) (*model.Contest, error) {
 	}
 
 	// get contest
-	err := db.Preload("Contests", "contest_id = ?", id).First(&user).Error
+	err := db.Preload("Contests", "contest_id = ?", id).Preload("Contests.Owner").First(&user).Error
 	if mysql.ErrorHandleAndLog(c, err, true, "get contest", id) != mysql.Success {
 		return nil, err
 	}
@@ -393,9 +393,7 @@ func GetContestInviteData(c *gin.Context, inviteId string) (*data.ContestInviteD
 	k := ContestInvitePrefix + inviteId
 	res, err := redisCli.Get(k).Result()
 	if r := kredis.ErrorHandleAndLog(c, err, false,
-		"get invite data", k, nil); r == kredis.NotFound {
-		return nil, err
-	} else if r != kredis.Success {
+		"get invite data", k, nil); r != kredis.Success {
 		return nil, err
 	}
 
@@ -420,7 +418,7 @@ func JoinContestQuery(c *gin.Context, inviteId string) (*data.ContestWrap, error
 	}
 
 	contest := model.Contest{}
-	err = db.First(&contest, inviteData.ContestID).Error
+	err = db.Preload("Owner").First(&contest, inviteData.ContestID).Error
 	if mysql.ErrorHandleAndLog(c, err, true,
 		"get contest", inviteData.ContestID) != mysql.Success {
 		return nil, err

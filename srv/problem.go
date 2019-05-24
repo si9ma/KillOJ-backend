@@ -119,7 +119,7 @@ func GetAllProblems(c *gin.Context, page, pageSize int, order string, of string,
 	}
 
 	queryDB := db.Preload("Tags").Preload("UpVoteUsers", "attitude = ?", model.Up).
-		Preload("DownVoteUsers", "attitude = ?", model.Down).
+		Preload("DownVoteUsers", "attitude = ?", model.Down).Preload("Catalog").
 		Limit(pageSize).Offset(offset)
 	if order != "" {
 		err = queryDB.Order(order).Find(&problems).Error
@@ -143,10 +143,11 @@ func GetProblem(c *gin.Context, id int, forUpdate bool) (*model.Problem, error) 
 	myID := auth.GetUserFromJWT(c).ID
 
 	// get problem
-	queryDB := db.Preload("Tags").Preload("ProblemSamples").Preload("ProblemTestCases").
+	queryDB := db.Preload("Tags").Preload("ProblemSamples").Preload("ProblemTestCases").Preload("Owner").
 		Preload("Comments").Preload("Comments.User"). // comments
 		Preload("UpVoteUsers", "attitude = ?", model.Up).
-		Preload("DownVoteUsers", "attitude = ?", model.Down)
+		Preload("DownVoteUsers", "attitude = ?", model.Down).
+		Preload("Catalog")
 
 	err := queryDB.First(&problem, id).Error
 	if mysql.ErrorHandleAndLog(c, err, true, "get problem", id) != mysql.Success {

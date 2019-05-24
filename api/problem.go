@@ -27,7 +27,7 @@ func SetupProblem(r *gin.Engine) {
 	auth.AuthGroup.GET("/problems/problem/:id", GetProblem)
 	auth.AuthGroup.POST("/problems", AddProblem)
 	auth.AuthGroup.PUT("/problems/problem/:id", UpdateProblem)
-	auth.AuthGroup.GET("/problems/problem/:id/vote", VoteProblem)
+	auth.AuthGroup.POST("/problems/problem/:id/vote", VoteProblem)
 	auth.AuthGroup.POST("/problems/problem/:id/submit", Submit)
 	auth.AuthGroup.GET("/problems/problem/:id/lastsubmit", GetLastSubmit)
 	auth.AuthGroup.GET("/problems/problem/:id/result", GetResult)

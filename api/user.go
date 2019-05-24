@@ -216,7 +216,7 @@ func GetUserInfo(c *gin.Context) {
 	userID := auth.GetUserFromJWT(c).ID
 	user := model.User{}
 
-	err := db.First(&user, userID).Error
+	err := db.Preload("Theme").First(&user, userID).Error
 	if mysql.ErrorHandleAndLog(c, err, true,
 		"get user info", userID) != mysql.Success {
 		return

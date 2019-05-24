@@ -56,11 +56,11 @@ func GetAllGroups(c *gin.Context, page, pageSize int, order string) ([]model.Gro
 	if order != "" {
 		err = db.Preload("Groups", func(db *gorm.DB) *gorm.DB {
 			return db.Order(order).Offset(offset).Limit(pageSize)
-		}).First(&user).Error
+		}).Preload("Groups.Owner").First(&user).Error
 	} else {
 		err = db.Preload("Groups", func(db *gorm.DB) *gorm.DB {
 			return db.Offset(offset).Limit(pageSize)
-		}).First(&user).Error
+		}).Preload("Groups.Owner").First(&user).Error
 	}
 
 	// error handle
@@ -81,7 +81,7 @@ func GetGroup(c *gin.Context, id int) (*model.Group, error) {
 	}
 
 	// get group
-	err := db.Preload("Groups", "group_id = ?", id).First(&user).Error
+	err := db.Preload("Groups", "group_id = ?", id).Preload("Groups.Owner").First(&user).Error
 	if mysql.ErrorHandleAndLog(c, err, true, "get group", id) != mysql.Success {
 		return nil, err
 	}
@@ -301,7 +301,7 @@ func Invite2Group(c *gin.Context, inviteData *data.GroupInviteData) (err error) 
 	}
 
 	// mark group as already invite
-	err = redisCli.Set(k2, true, timeout).Err()
+	err = redisCli.Set(k2, k1, timeout).Err()
 	if res := kredis.ErrorHandleAndLog(c, err, true,
 		"save group invite data", k1, nil); res != kredis.Success {
 		return err
@@ -319,7 +319,7 @@ func GetGroupInviteData(c *gin.Context, inviteId string) (*data.GroupInviteData,
 	k := GroupInvitePrefix + inviteId
 	res, err := redisCli.Get(k).Result()
 	if r := kredis.ErrorHandleAndLog(c, err, false,
-		"get invite data", k, nil); r != kredis.NotFound {
+		"get invite data", k, nil); r != kredis.Success {
 		return nil, err
 	}
 
@@ -344,7 +344,7 @@ func JoinGroupQuery(c *gin.Context, inviteId string) (*data.GroupWrap, error) {
 	}
 
 	group := model.Group{}
-	err = db.First(&group, inviteData.GroupID).Error
+	err = db.Preload("Owner").First(&group, inviteData.GroupID).Error
 	if mysql.ErrorHandleAndLog(c, err, true,
 		"get group", inviteData.GroupID) != mysql.Success {
 		return nil, err

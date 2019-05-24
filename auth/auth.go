@@ -32,7 +32,7 @@ import (
 )
 
 type login struct {
-	UserName   string `json:"name" binding:"required,max=100"` // user name or email
+	Name       string `json:"name" binding:"required,max=100"` // user name or email
 	Password   string `json:"password" binding:"required,min=6,max=30"`
 	GithubID   string `json:"github_id"` // user name or email
 	GithubName string `json:"github_name"`
@@ -180,24 +180,24 @@ func passwdAuthenticate(c *gin.Context) (interface{}, error) {
 	if !wrap.ShouldBind(c, &loginVals, false) {
 		return "", jwt.ErrMissingLoginValues
 	}
-	userName := loginVals.UserName
+	userName := loginVals.Name
 	password := loginVals.Password
 
 	// query db
 	user := model.User{}
 	if utils.CheckEmail(userName) {
 		// username is email
-		err = db.Where("email = ?", loginVals.UserName).First(&user).Error
+		err = db.Where("email = ?", loginVals.Name).First(&user).Error
 	} else {
 		// username is user name
-		err = db.Where("name = ?", loginVals.UserName).First(&user).Error
+		err = db.Where("name = ?", loginVals.Name).First(&user).Error
 	}
 	if res := mysql.ErrorHandleAndLog(c, err, false,
-		"get user by username(email/name)", loginVals.UserName); res == mysql.NotFound {
-		log.For(ctx).Error("user not exist", zap.String("username", loginVals.UserName))
+		"get user by username(email/name)", loginVals.Name); res == mysql.NotFound {
+		log.For(ctx).Error("user not exist", zap.String("username", loginVals.Name))
 
 		_ = c.Error(err).SetType(gin.ErrorTypePublic).
-			SetMeta(kerror.ErrUserNotExist.WithArgs(loginVals.UserName))
+			SetMeta(kerror.ErrUserNotExist.WithArgs(loginVals.Name))
 
 		return "", jwt.ErrFailedAuthentication
 	} else if res != mysql.Success {
@@ -206,7 +206,7 @@ func passwdAuthenticate(c *gin.Context) (interface{}, error) {
 
 	//  verify password
 	if newVal, err := passlib.Verify(password, user.EncryptedPasswd); err != nil {
-		log.For(ctx).Error("verify password fail", zap.String("username", loginVals.UserName))
+		log.For(ctx).Error("verify password fail", zap.String("username", loginVals.Name))
 
 		_ = c.Error(err).SetType(gin.ErrorTypePublic).
 			SetMeta(kerror.ErrPasswordWrong)
@@ -239,7 +239,7 @@ func passwdAuthenticate(c *gin.Context) (interface{}, error) {
 		}
 	}
 
-	log.For(ctx).Info("authenticate user success", zap.String("username", loginVals.UserName))
+	log.For(ctx).Info("authenticate user success", zap.String("username", loginVals.Name))
 	return user, nil
 }
 
@@ -277,7 +277,7 @@ func bindUser(c *gin.Context, oldUser model.User, githubName, githubID string) e
 		}
 	}
 
-	if err := db.Model(&oldUser).Update("github_user_id", githubID, "github_name", githubName).Error; err != nil {
+	if err := db.Model(&oldUser).Updates(model.User{GithubUserID: githubID, GithubName: githubName}).Error; err != nil {
 		log.For(ctx).Error("binding user to github fail", zap.Error(err),
 			zap.Int("id", oldUser.ID))
 

@@ -7,6 +7,7 @@ func Setup(r *gin.Engine) {
 	SetupUser(r)    // user
 	SetupGroup(r)   // group
 	SetupContest(r) // contest
-	SetupProblem(r) // contest
-	SetupTag(r)     // contest
+	SetupProblem(r) // problem
+	SetupTag(r)     // tag
+	SetupTheme(r)   // theme
 }
