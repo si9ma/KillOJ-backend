@@ -9,5 +9,6 @@ func Setup(r *gin.Engine) {
 	SetupContest(r) // contest
 	SetupProblem(r) // problem
 	SetupTag(r)     // tag
+	SetupTemplate(r)     // template
 	SetupTheme(r)   // theme
 }

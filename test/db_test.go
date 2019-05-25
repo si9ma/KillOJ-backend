@@ -1,6 +1,7 @@
 package model
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/si9ma/KillOJ-common/model"
@@ -80,45 +81,57 @@ func TestDB(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	user := Userr{}
-	creditCards := []CreditCard{}
-	db.First(&user)
-	db.Model(&user).Related(&creditCards, "UserRefer")
-
-	t.Log(kjson.MarshalString(&user))
-	t.Log(kjson.MarshalString(&creditCards))
+	//	user := Userr{}
+	//	creditCards := []CreditCard{}
+	//	db.First(&user)
+	//	db.Model(&user).Related(&creditCards, "UserRefer")
+	//
+	//	t.Log(kjson.MarshalString(&user))
+	//	t.Log(kjson.MarshalString(&creditCards))
+	//
+	//	problem := model.Problem{}
+	//	db.First(&problem)
+	//	t.Log(kjson.MarshalString(&problem))
+	//
+	//	rawsql := `
+	//select distinct p.* from problem as p,user as u,user_in_group as up,user_in_contest as uc
+	//    where u.id = ? and
+	//    (
+	//		p.belong_type = 0 or
+	//		(p.belong_type = 1 and u.id = up.user_id and p.belong_to_id = up.group_id) or
+	//		(p.belong_type = 2 and u.id = up.user_id and p.belong_to_id = uc.contest_id)
+	//    )
+	//`
+	//	var problems []model.Problem
+	//	db.Raw(rawsql, 30).Limit(10).Offset(0).Find(&problems)
+	//	t.Log(kjson.MarshalString(&problems))
+	//
+	//	err = db.Raw("delete from problem_has_tag as t where t.tag_id = 22 and t.problem_id = 32").Error
+	//	err = db.First(&problem, 100).Error
+	//	t.Log(err)
+	//
+	//	problem1 := model.Problem{}
+	//	err = db.Preload("UpVoteUsers", "is_ok = ?", true).Preload("DownVoteUsers", "is_ok = ?", false).
+	//		First(&problem1, 10).Error
+	//	t.Log(kjson.MarshalString(&problem1))
+	//
+	//	u := model.User{}
+	//	err = db.Preload("Theme").First(&u, 36).Error
+	//	if err != nil {
+	//		t.Fatal(err)
+	//	}
 
 	problem := model.Problem{}
-	db.First(&problem)
-	t.Log(kjson.MarshalString(&problem))
+	db.First(&problem, 10)
 
-	rawsql := `
-select distinct p.* from problem as p,user as u,user_in_group as up,user_in_contest as uc 
-    where u.id = ? and
-    (
-		p.belong_type = 0 or
-		(p.belong_type = 1 and u.id = up.user_id and p.belong_to_id = up.group_id) or
-		(p.belong_type = 2 and u.id = up.user_id and p.belong_to_id = uc.contest_id)
-    )
-`
-	var problems []model.Problem
-	db.Raw(rawsql, 30).Limit(10).Offset(0).Find(&problems)
-	t.Log(kjson.MarshalString(&problems))
-
-	err = db.Raw("delete from problem_has_tag as t where t.tag_id = 22 and t.problem_id = 32").Error
-	err = db.First(&problem, 100).Error
-	t.Log(err)
-
-	problem1 := model.Problem{}
-	err = db.Preload("UpVoteUsers", "is_ok = ?", true).Preload("DownVoteUsers", "is_ok = ?", false).
-		First(&problem1, 10).Error
-	t.Log(kjson.MarshalString(&problem1))
-
-	u := model.User{}
-	err = db.Preload("Theme").First(&u, 36).Error
-	if err != nil {
-		t.Fatal(err)
+	type limit struct {
+		TimeLimit   int `json:"time_limit"`
+		MemoryLimit int `json:"memory_limit"`
 	}
 
-	t.Log(kjson.MarshalString(&u))
+	r := []limit{}
+
+	t.Log(kjson.MarshalString(&problem))
+	json.Unmarshal(problem.Limit, &r)
+	t.Log(r)
 }

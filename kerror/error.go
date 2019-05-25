@@ -40,6 +40,7 @@ var (
 	ErrMustProvideWhenAnotherExist = ErrResponse{http.StatusBadRequest, 40008, tip.MustProvideWhenAnotherExistTip, nil}
 	ErrNotComplete                 = ErrResponse{http.StatusBadRequest, 40009, tip.TaskNotCompleteTip, nil}
 	ErrAtLeast                     = ErrResponse{http.StatusBadRequest, 40010, tip.AtLeastTip, nil}
+	ErrHaveRunningTask             = ErrResponse{http.StatusBadRequest, 40011, tip.HaveRunningTaskTip, nil}
 
 	// 401xx:
 	ErrUnauthorizedGeneral = ErrResponse{http.StatusUnauthorized, 40100, tip.UnauthorizedGeneralTip, nil}
@@ -48,7 +49,6 @@ var (
 	Err3rdAuthFail         = ErrResponse{http.StatusUnauthorized, 40103, tip.ThirdAuthFailTip, nil}
 	ErrNoSignUp            = ErrResponse{http.StatusUnauthorized, 40104, tip.NoSignupTip, nil}
 	ErrNotSupportProvider  = ErrResponse{http.StatusUnauthorized, 40105, tip.NotSupportProviderTip, nil}
-	ErrHaveRunningTask     = ErrResponse{http.StatusUnauthorized, 40106, tip.HaveRunningTaskTip, nil}
 
 	// 403xx : forbidden
 	ErrForbiddenGeneral = ErrResponse{http.StatusForbidden, 40300, tip.ForbiddenTip, nil}
