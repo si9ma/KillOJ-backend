@@ -44,6 +44,8 @@ func SetupUser(r *gin.Engine) {
 	auth.AuthGroup.PUT(ProfilePath, UserInfoEdit)
 	auth.AuthGroup.GET(ProfilePath, GetUserInfo)
 	auth.AuthGroup.GET("/user/:id", GetOtherUserInfo)
+	auth.AuthGroup.GET("/users",
+		middleware.AuthorizateFunc(GetAllUsers, model.Administrator))
 	auth.AuthGroup.PUT("/admin/maintainers/:id",
 		middleware.AuthorizateFunc(UpdateMaintainer, model.Administrator))
 	auth.AuthGroup.GET("/admin/maintainers",
@@ -325,5 +327,32 @@ func GetAllMaintainers(c *gin.Context) {
 	}
 
 	log.For(ctx).Info("success get maintainers")
+	c.JSON(http.StatusOK, users)
+}
+
+func GetAllUsers(c *gin.Context) {
+	var err error
+
+	ctx := c.Request.Context()
+	db := otgrom.SetSpanToGorm(ctx, gbl.DB)
+	arg := PageArg{}
+
+	// bind
+	if !wrap.ShouldBind(c, &arg, false) {
+		return
+	}
+	offset := (arg.Page - 1) * arg.PageSize
+
+	var users []model.User
+	if arg.Order != "" {
+		err = db.Order(arg.Order).Offset(offset).Limit(arg.PageSize).Find(&users).Error
+	} else {
+		err = db.Offset(offset).Limit(arg.PageSize).Find(&users).Error
+	}
+	if mysql.ErrorHandleAndLog(c, err, true, "get users", nil) != mysql.Success {
+		return
+	}
+
+	log.For(ctx).Info("success get users")
 	c.JSON(http.StatusOK, users)
 }

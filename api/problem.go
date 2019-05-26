@@ -236,10 +236,11 @@ func Comment4Problem(c *gin.Context) {
 	}
 
 	commentArg.ProblemID = uriArg.ID
-	if err := srv.Comment4Problem(c, &commentArg); err != nil {
+	comment,err := srv.Comment4Problem(c, &commentArg)
+	if err != nil {
 		log.For(ctx).Error("add new comment fail", zap.Error(err), zap.Int("problemId", uriArg.ID))
 		return
 	}
 
-	c.JSON(http.StatusOK, commentArg)
+	c.JSON(http.StatusOK, comment)
 }

@@ -36,7 +36,8 @@ type SubmitArg struct {
 }
 
 type CommentArg struct {
-	ProblemID int
-	Content   string `json:"content" binding:"required"`
-	ParentID  int    `json:"parent_id"`
+	ProblemID  int
+	Content    string `json:"content" binding:"required"`
+	ForComment int    `json:"for_comment" binding:"exists,min=0"`
+	ToID       int    `json:"to_id" binding:"exists,min=0"`
 }

@@ -54,9 +54,9 @@ var (
 	ErrForbiddenGeneral = ErrResponse{http.StatusForbidden, 40300, tip.ForbiddenTip, nil}
 
 	// 404xx : not found
-	ErrNotFoundGeneral     = ErrResponse{http.StatusForbidden, 40400, tip.NotFoundTip, nil}
-	ErrNotFound            = ErrResponse{http.StatusBadRequest, 40401, tip.NotExistTip, nil}
-	ErrNotFoundOrOutOfDate = ErrResponse{http.StatusBadRequest, 40401, tip.NotExistOrOutOfDateTip, nil}
+	ErrNotFoundGeneral     = ErrResponse{http.StatusNotFound, 40400, tip.NotFoundTip, nil}
+	ErrNotFound            = ErrResponse{http.StatusNotFound, 40401, tip.NotExistTip, nil}
+	ErrNotFoundOrOutOfDate = ErrResponse{http.StatusNotFound, 40401, tip.NotExistOrOutOfDateTip, nil}
 
 	// 500xx: Internal Server Error
 	ErrInternalServerErrorGeneral = ErrResponse{http.StatusInternalServerError, 50000, tip.InternalServerErrorTip, nil}

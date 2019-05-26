@@ -39,7 +39,7 @@ const (
 			p.belong_type = 0 or
 			p.owner_id = ? or
 			(p.belong_type = 1 and up.user_id = ? and p.belong_to_id = up.group_id) or
-			(p.belong_type = 2 and up.user_id = ? and p.belong_to_id = uc.contest_id)
+			(p.belong_type = 2 and uc.user_id = ? and p.belong_to_id = uc.contest_id)
 		`
 	ofTagSql = `
 		select distinct p.* from problem as p,user_in_group as up,user_in_contest as uc,problem_has_tag as pt 
@@ -50,7 +50,7 @@ const (
 			p.belong_type = 0 or
 			p.owner_id = ? or
 			(p.belong_type = 1 and up.user_id = ? and p.belong_to_id = up.group_id) or
-			(p.belong_type = 2 and up.user_id = ? and p.belong_to_id = uc.contest_id)
+			(p.belong_type = 2 and uc.user_id = ? and p.belong_to_id = uc.contest_id)
 		)
 		`
 )
@@ -144,12 +144,22 @@ func GetProblem(c *gin.Context, id int, forUpdate bool) (*model.Problem, error) 
 
 	// get problem
 	queryDB := db.Preload("Tags").Preload("ProblemSamples").Preload("ProblemTestCases").Preload("Owner").
-		Preload("Comments").Preload("Comments.User"). // comments
 		Preload("UpVoteUsers", "attitude = ?", model.Up).
 		Preload("DownVoteUsers", "attitude = ?", model.Down).
 		Preload("Catalog")
 
-	err := queryDB.First(&problem, id).Error
+
+	submit := model.Submit{}
+	err := db.First(&submit).Error
+	if r := mysql.ErrorHandleAndLog(c, err, false,
+		 "check if user have success submit for problem", id);r == mysql.Success {
+		// if user haven't has any success submit, we shouldn't return comments
+		queryDB = queryDB.Preload("Comments").Preload("Comments.From").Preload("Comments.To")
+	}else if (r == mysql.DB_ERROR) {
+		return nil,err
+	}
+
+	err = queryDB.First(&problem, id).Error
 	if mysql.ErrorHandleAndLog(c, err, true, "get problem", id) != mysql.Success {
 		return nil, err
 	}
@@ -860,41 +870,49 @@ func GetResult(c *gin.Context, problemID int) (*judge.OuterResult, error) {
 	return &result, nil
 }
 
-func Comment4Problem(c *gin.Context, commentArg *data.CommentArg) error {
+func Comment4Problem(c *gin.Context, commentArg *data.CommentArg) (*model.Comment,error) {
 	ctx := c.Request.Context()
 	db := otgrom.SetSpanToGorm(ctx, gbl.DB)
 	myID := auth.GetUserFromJWT(c).ID
 
 	// check if problem exist
 	if _, err := GetProblem(c, commentArg.ProblemID, false); err != nil {
-		return err
+		return nil,err
 	}
 
-	// reply
-	if commentArg.ParentID != 0 {
-		// check if parent comment exist
+	// for reply
+	if commentArg.ForComment > 0 {
+		// check if this comment available
 		comment := model.Comment{}
-		err := db.Where("problem_id = ? AND id = ?",
-			commentArg.ProblemID, commentArg.ParentID).First(&comment).Error
-		arg := fmt.Sprintf("comment %d", commentArg.ParentID)
+		err := db.Where("id = ? AND from_id = ? ", commentArg.ForComment, commentArg.ToID).
+			Or("for_comment = ? AND from_id = ?", commentArg.ForComment, commentArg.ToID).
+			First(&comment).Error
 		if mysql.ErrorHandleAndLog(c, err, true,
-			"check if comment exist", arg) != mysql.Success {
-			return err
+			"check if comment exist", commentArg.ForComment) != mysql.Success {
+			return nil,err
 		}
 	}
 
 	comment := model.Comment{
-		ProblemID: commentArg.ProblemID,
-		UserID:    myID,
-		ParentID:  commentArg.ParentID,
-		Content:   commentArg.Content,
+		ProblemID:  commentArg.ProblemID,
+		FromID:     myID,
+		ToID:       commentArg.ToID,
+		Content:    commentArg.Content,
+		ForComment: commentArg.ForComment,
 	}
 
 	err := db.Save(&comment).Error
 	if mysql.ErrorHandleAndLog(c, err, true,
-		"save comment", commentArg.ParentID) != mysql.Success {
-		return err
+		"save comment", commentArg.ForComment) != mysql.Success {
+		return nil,err
 	}
 
-	return nil
+	// query user info
+	err = db.Preload("From").Preload("To").First(&comment,comment.ID).Error
+	if mysql.ErrorHandleAndLog(c, err, true,
+		"query comment info after add comment", commentArg.ForComment) != mysql.Success {
+		return nil,err
+	}
+
+	return &comment,nil
 }
