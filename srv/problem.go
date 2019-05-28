@@ -148,15 +148,14 @@ func GetProblem(c *gin.Context, id int, forUpdate bool) (*model.Problem, error) 
 		Preload("DownVoteUsers", "attitude = ?", model.Down).
 		Preload("Catalog")
 
-
 	submit := model.Submit{}
 	err := db.First(&submit).Error
 	if r := mysql.ErrorHandleAndLog(c, err, false,
-		 "check if user have success submit for problem", id);r == mysql.Success {
+		"check if user have success submit for problem", id); r == mysql.Success {
 		// if user haven't has any success submit, we shouldn't return comments
 		queryDB = queryDB.Preload("Comments").Preload("Comments.From").Preload("Comments.To")
-	}else if (r == mysql.DB_ERROR) {
-		return nil,err
+	} else if r == mysql.DB_ERROR {
+		return nil, err
 	}
 
 	err = queryDB.First(&problem, id).Error
@@ -870,14 +869,14 @@ func GetResult(c *gin.Context, problemID int) (*judge.OuterResult, error) {
 	return &result, nil
 }
 
-func Comment4Problem(c *gin.Context, commentArg *data.CommentArg) (*model.Comment,error) {
+func Comment4Problem(c *gin.Context, commentArg *data.CommentArg) (*model.Comment, error) {
 	ctx := c.Request.Context()
 	db := otgrom.SetSpanToGorm(ctx, gbl.DB)
 	myID := auth.GetUserFromJWT(c).ID
 
 	// check if problem exist
 	if _, err := GetProblem(c, commentArg.ProblemID, false); err != nil {
-		return nil,err
+		return nil, err
 	}
 
 	// for reply
@@ -889,7 +888,7 @@ func Comment4Problem(c *gin.Context, commentArg *data.CommentArg) (*model.Commen
 			First(&comment).Error
 		if mysql.ErrorHandleAndLog(c, err, true,
 			"check if comment exist", commentArg.ForComment) != mysql.Success {
-			return nil,err
+			return nil, err
 		}
 	}
 
@@ -904,15 +903,15 @@ func Comment4Problem(c *gin.Context, commentArg *data.CommentArg) (*model.Commen
 	err := db.Save(&comment).Error
 	if mysql.ErrorHandleAndLog(c, err, true,
 		"save comment", commentArg.ForComment) != mysql.Success {
-		return nil,err
+		return nil, err
 	}
 
 	// query user info
-	err = db.Preload("From").Preload("To").First(&comment,comment.ID).Error
+	err = db.Preload("From").Preload("To").First(&comment, comment.ID).Error
 	if mysql.ErrorHandleAndLog(c, err, true,
 		"query comment info after add comment", commentArg.ForComment) != mysql.Success {
-		return nil,err
+		return nil, err
 	}
 
-	return &comment,nil
+	return &comment, nil
 }

@@ -32,6 +32,8 @@ func SetupProblem(r *gin.Engine) {
 	auth.AuthGroup.GET("/problems/problem/:id/lastsubmit", GetLastSubmit)
 	auth.AuthGroup.GET("/problems/problem/:id/result", GetResult)
 	auth.AuthGroup.POST("/problems/problem/:id/comment", Comment4Problem)
+	auth.AuthGroup.GET("/submits", GetAllSubmit)
+	auth.AuthGroup.GET("/submits/:id", GetSubmit)
 	//auth.AuthProblem.DELETE("/problems/:id", DeleteProblem)
 }
 
@@ -236,11 +238,48 @@ func Comment4Problem(c *gin.Context) {
 	}
 
 	commentArg.ProblemID = uriArg.ID
-	comment,err := srv.Comment4Problem(c, &commentArg)
+	comment, err := srv.Comment4Problem(c, &commentArg)
 	if err != nil {
 		log.For(ctx).Error("add new comment fail", zap.Error(err), zap.Int("problemId", uriArg.ID))
 		return
 	}
 
 	c.JSON(http.StatusOK, comment)
+}
+
+func GetAllSubmit(c *gin.Context) {
+	var err error
+	ctx := c.Request.Context()
+	arg := SubmitGetArg{}
+
+	// bind
+	if !wrap.ShouldBind(c, &arg, false) {
+		return
+	}
+
+	submits, err := srv.GetAllSubmit(c, arg.Page, arg.PageSize, arg.Order, arg.Of, arg.ID, arg.OnlyDuringContest)
+	if err != nil {
+		log.For(ctx).Error("get submits fail", zap.Error(err))
+		return
+	}
+
+	c.JSON(http.StatusOK, submits)
+}
+
+func GetSubmit(c *gin.Context) {
+	ctx := c.Request.Context()
+	uriArg := QueryArg{}
+
+	// bind
+	if !wrap.ShouldBind(c, &uriArg, true) {
+		return
+	}
+
+	submit, err := srv.GetSubmit(c, uriArg.ID)
+	if err != nil {
+		log.For(ctx).Error("get submit info", zap.Error(err), zap.Int("submitID", uriArg.ID))
+		return
+	}
+
+	c.JSON(http.StatusOK, submit)
 }

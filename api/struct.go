@@ -8,6 +8,15 @@ type PageArg struct {
 	ID       int    `json:"id" form:"id" binding:"requiredwhenfield=Of"`
 }
 
+type SubmitGetArg struct {
+	Page              int    `json:"page" form:"page" binding:"required,min=1"`
+	PageSize          int    `json:"page_size" form:"page_size" binding:"required,min=1"`
+	Order             string `json:"order" form:"order"`
+	Of                string `json:"of" form:"of" binding:"omitempty,oneof=group contest problem me user"`
+	ID                int    `json:"id" form:"id" binding:"requiredwhenfield=Of"`
+	OnlyDuringContest bool   `json:"only_during_contest"`
+}
+
 type QueryArg struct {
 	ID int `json:"id" uri:"id" form:"id" binding:"required"`
 }
