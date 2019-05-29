@@ -1,4 +1,4 @@
-FROM 1.12-alpine
+FROM golang:1.12-alpine
 
 RUN apk add \
     # for docker-entrypoint.sh
