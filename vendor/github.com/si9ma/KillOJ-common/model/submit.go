@@ -16,8 +16,8 @@ type Submit struct {
 	RunTime     int       `gorm:"column:run_time" json:"run_time"`
 	MemoryUsage int       `gorm:"column:memory_usage" json:"memory_usage"`
 	IsComplete  bool      `gorm:"column:is_complete" json:"is_complete"`
-	Problem     Problem   `json:"problem"`
-	User        User 	  `json:"user"`
+	Problem     Problem   `json:"problem" binding:"-"`
+	User        User      `json:"user" binding:"-"`
 }
 
 // TableName sets the insert table name for this struct type

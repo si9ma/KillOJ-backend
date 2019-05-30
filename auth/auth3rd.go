@@ -36,6 +36,9 @@ func Setup3rdAuth(r *gin.Engine, cfg config.AuthConfig) {
 }
 
 func getCallback(cfg config.AuthConfig, provider string) string {
+	if url := os.Getenv(constants.Env3rdAuthCallBackUrl); url != "" {
+		return strings.Join([]string{url, provider, "callback"}, "/")
+	}
 	return strings.Join([]string{cfg.CallbackBaseURL, provider, "callback"}, "/")
 }
 

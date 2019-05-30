@@ -13,8 +13,8 @@ type Comment struct {
 	ProblemID  int       `gorm:"column:problem_id" json:"problem_id"`
 	ForComment int       `gorm:"column:for_comment" json:"for_comment"`
 	Content    string    `gorm:"column:content" json:"content"`
-	From       User      `json:"from" gorm:"foreignkey:FromID;"`
-	To         User      `json:"to" gorm:"foreignkey:ToID;"`
+	From       User      `json:"from" gorm:"foreignkey:FromID;" binding:"-"`
+	To         User      `json:"to" gorm:"foreignkey:ToID;" binding:"-"`
 }
 
 // TableName sets the insert table name for this struct type

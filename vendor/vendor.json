@@ -790,74 +790,74 @@
 		{
 			"checksumSHA1": "7MjP2QKU+N2t/MrJnFoingSSPdQ=",
 			"path": "github.com/si9ma/KillOJ-common/asyncjob",
-			"revision": "655719bf0ea053916bc6748943652a3b5ad0018e",
-			"revisionTime": "2019-05-28T13:01:03Z"
+			"revision": "57ec74cdb0b381ce535256fe0ec109485faa452d",
+			"revisionTime": "2019-05-30T02:00:57Z"
 		},
 		{
-			"checksumSHA1": "7+p/2UxIIVoDTyHtDqQSpi1lTrg=",
+			"checksumSHA1": "q/dTTSyzDKnZLywu+FRBA5j2LPg=",
 			"path": "github.com/si9ma/KillOJ-common/constants",
-			"revision": "655719bf0ea053916bc6748943652a3b5ad0018e",
-			"revisionTime": "2019-05-28T13:01:03Z"
+			"revision": "57ec74cdb0b381ce535256fe0ec109485faa452d",
+			"revisionTime": "2019-05-30T02:00:57Z"
 		},
 		{
 			"checksumSHA1": "s0CELLWbyQYhgsDkkaxXSLLkQ+s=",
 			"path": "github.com/si9ma/KillOJ-common/judge",
-			"revision": "655719bf0ea053916bc6748943652a3b5ad0018e",
-			"revisionTime": "2019-05-28T13:01:03Z"
+			"revision": "57ec74cdb0b381ce535256fe0ec109485faa452d",
+			"revisionTime": "2019-05-30T02:00:57Z"
 		},
 		{
 			"checksumSHA1": "gLmsPeHQPRfOaqSnXt+37PhSr9Q=",
 			"path": "github.com/si9ma/KillOJ-common/kjson",
-			"revision": "655719bf0ea053916bc6748943652a3b5ad0018e",
-			"revisionTime": "2019-05-28T13:01:03Z"
+			"revision": "57ec74cdb0b381ce535256fe0ec109485faa452d",
+			"revisionTime": "2019-05-30T02:00:57Z"
 		},
 		{
 			"checksumSHA1": "d3H1q3pQyeNBEGQc3TzK/PstobM=",
 			"path": "github.com/si9ma/KillOJ-common/kredis",
-			"revision": "655719bf0ea053916bc6748943652a3b5ad0018e",
-			"revisionTime": "2019-05-28T13:01:03Z"
+			"revision": "57ec74cdb0b381ce535256fe0ec109485faa452d",
+			"revisionTime": "2019-05-30T02:00:57Z"
 		},
 		{
 			"checksumSHA1": "JQ1usNf9UPhGztk0kCcLuyDVCRU=",
 			"path": "github.com/si9ma/KillOJ-common/lang",
-			"revision": "655719bf0ea053916bc6748943652a3b5ad0018e",
-			"revisionTime": "2019-05-28T13:01:03Z"
+			"revision": "57ec74cdb0b381ce535256fe0ec109485faa452d",
+			"revisionTime": "2019-05-30T02:00:57Z"
 		},
 		{
 			"checksumSHA1": "zRGB3SLjjcNhkeylwfxlVVh4a+s=",
 			"path": "github.com/si9ma/KillOJ-common/log",
-			"revision": "655719bf0ea053916bc6748943652a3b5ad0018e",
-			"revisionTime": "2019-05-28T13:01:03Z"
+			"revision": "57ec74cdb0b381ce535256fe0ec109485faa452d",
+			"revisionTime": "2019-05-30T02:00:57Z"
 		},
 		{
-			"checksumSHA1": "kh0j2YNDEHUGrkG0QwnyGHO3OpQ=",
+			"checksumSHA1": "hnV9sDv0F34gUc3Kv3nOjWp7A3s=",
 			"path": "github.com/si9ma/KillOJ-common/model",
-			"revision": "655719bf0ea053916bc6748943652a3b5ad0018e",
-			"revisionTime": "2019-05-28T13:01:03Z"
+			"revision": "57ec74cdb0b381ce535256fe0ec109485faa452d",
+			"revisionTime": "2019-05-30T02:00:57Z"
 		},
 		{
 			"checksumSHA1": "ml0a2206oATDuS++CWAwBrrFOrc=",
 			"path": "github.com/si9ma/KillOJ-common/mysql",
-			"revision": "655719bf0ea053916bc6748943652a3b5ad0018e",
-			"revisionTime": "2019-05-28T13:01:03Z"
+			"revision": "57ec74cdb0b381ce535256fe0ec109485faa452d",
+			"revisionTime": "2019-05-30T02:00:57Z"
 		},
 		{
 			"checksumSHA1": "uVDdyy/D31GHHaM3vnt8SSzWXrE=",
 			"path": "github.com/si9ma/KillOJ-common/tip",
-			"revision": "655719bf0ea053916bc6748943652a3b5ad0018e",
-			"revisionTime": "2019-05-28T13:01:03Z"
+			"revision": "57ec74cdb0b381ce535256fe0ec109485faa452d",
+			"revisionTime": "2019-05-30T02:00:57Z"
 		},
 		{
 			"checksumSHA1": "BmD4Tt5bU1Vcj/zlQp3LAlB4zCY=",
 			"path": "github.com/si9ma/KillOJ-common/tracing",
-			"revision": "655719bf0ea053916bc6748943652a3b5ad0018e",
-			"revisionTime": "2019-05-28T13:01:03Z"
+			"revision": "57ec74cdb0b381ce535256fe0ec109485faa452d",
+			"revisionTime": "2019-05-30T02:00:57Z"
 		},
 		{
 			"checksumSHA1": "cRm8YUH6g3P7H4BZNkhv82d9xRI=",
 			"path": "github.com/si9ma/KillOJ-common/utils",
-			"revision": "655719bf0ea053916bc6748943652a3b5ad0018e",
-			"revisionTime": "2019-05-28T13:01:03Z"
+			"revision": "57ec74cdb0b381ce535256fe0ec109485faa452d",
+			"revisionTime": "2019-05-30T02:00:57Z"
 		},
 		{
 			"checksumSHA1": "3rZLTcSd0wu/JMTA0QhbwFOVmtw=",
