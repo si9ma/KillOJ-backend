@@ -10,6 +10,7 @@ RUN mkdir /app
 
 ADD ./docker-entrypoint.sh /
 
+LABEL BuildAt="2019-05-31 16:13"
 RUN go get -v github.com/si9ma/KillOJ-backend
 RUN go build -o /app/backend github.com/si9ma/KillOJ-backend 
 
