@@ -28,7 +28,7 @@ type Problem struct {
 	UpVoteUsers      []UserWithOnlyID  `gorm:"many2many:user_vote_problem;association_jointable_foreignkey:user_id;" json:"up_vote_users" binding:"-"`
 	DownVoteUsers    []UserWithOnlyID  `gorm:"many2many:user_vote_problem;association_jointable_foreignkey:user_id;" json:"down_vote_users" binding:"-"`
 	Comments         []Comment         `json:"comments" binding:"-"`
-	Owner            User              `json:"owner" binding:"-"`
+	Owner            User              `json:"owner" gorm:"foreignkey:OwnerID;association_autoupdate:false;association_autocreate:false" binding:"-"`
 	Limit            JSON              `gorm:"column:limit" json:"limit" binding:"required"` // todo store json in db may unreasonable
 }
 
