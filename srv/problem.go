@@ -761,6 +761,7 @@ func submit2Judger(c *gin.Context, submitID int) error {
 func GetLastSubmit(c *gin.Context, id int, needSuccess bool, needComplete bool) (*model.Submit, error) {
 	ctx := c.Request.Context()
 	db := otgrom.SetSpanToGorm(ctx, gbl.DB)
+	myID := auth.GetUserFromJWT(c).ID
 
 	// check if problem exist
 	if _, err := GetProblem(c, id, false); err != nil {
@@ -776,7 +777,7 @@ func GetLastSubmit(c *gin.Context, id int, needSuccess bool, needComplete bool) 
 		// query last successful result
 		queryDB = queryDB.Where("result = ?", judge.AcceptedStatus.Code)
 	}
-	err := queryDB.Last(&submit).Error
+	err := queryDB.Where("user_id = ?", myID).Last(&submit).Error
 	if mysql.ErrorHandleAndLog(c, err, true,
 		"get last user submit", "last submit") != mysql.Success {
 		return nil, err
