@@ -14,5 +14,6 @@ func InitDB(cfg Config) (*gorm.DB, error) {
 	// register callbacks must be called for a root instance of your gorm.DB
 	otgorm.AddGormCallbacks(db)
 	db = db.Set("gorm:association_autoupdate", false).Set("gorm:association_autocreate", false)
+
 	return db, nil
 }

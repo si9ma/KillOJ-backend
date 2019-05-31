@@ -263,7 +263,8 @@ func filterTags(c *gin.Context, problem *model.Problem) error {
 
 func AddProblem(c *gin.Context, newProblem *model.Problem) error {
 	ctx := c.Request.Context()
-	db := otgrom.SetSpanToGorm(ctx, gbl.DB)
+	dbWithAutoUpdate := gbl.DB.Set("gorm:association_autoupdate", true).Set("gorm:association_autocreate", true)
+	db := otgrom.SetSpanToGorm(ctx, dbWithAutoUpdate)
 	oldProblem := model.Problem{}
 
 	//  check unique
@@ -511,7 +512,8 @@ func checkTestCases(c *gin.Context, problem *model.Problem) error {
 
 func UpdateProblem(c *gin.Context, newProblem *model.Problem) error {
 	ctx := c.Request.Context()
-	db := otgrom.SetSpanToGorm(ctx, gbl.DB)
+	dbWithAutoUpdate := gbl.DB.Set("gorm:association_autoupdate", true).Set("gorm:association_autocreate", true)
+	db := otgrom.SetSpanToGorm(ctx, dbWithAutoUpdate)
 
 	// check if problem exist
 	oldProblem, err := GetProblem(c, newProblem.ID, false)
