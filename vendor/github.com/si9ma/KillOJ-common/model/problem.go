@@ -22,13 +22,13 @@ type Problem struct {
 	BelongToID       int               `gorm:"column:belong_to_id" json:"belong_to_id"`
 	CatalogID        int               `gorm:"column:catalog_id" json:"catalog_id" binding:"required"`
 	Catalog          Catalog           `json:"catalog" binding:"-"`
-	Tags             []Tag             `gorm:"many2many:problem_has_tag;" json:"tags" binding:"dive"`
-	ProblemSamples   []ProblemSample   `json:"samples" binding:"dive"`
-	ProblemTestCases []ProblemTestCase `json:"test_cases,omitempty" binding:"required,dive"`
+	Tags             []Tag             `gorm:"many2many:problem_has_tag;association_autoupdate:true;association_autocreate:true" json:"tags" binding:"dive"`
+	ProblemSamples   []ProblemSample   `json:"samples" gorm:"association_autoupdate:true;association_autocreate:true" binding:"dive"`
+	ProblemTestCases []ProblemTestCase `json:"test_cases,omitempty" gorm:"association_autoupdate:true;association_autocreate:true" binding:"required,dive"`
 	UpVoteUsers      []UserWithOnlyID  `gorm:"many2many:user_vote_problem;association_jointable_foreignkey:user_id;" json:"up_vote_users" binding:"-"`
 	DownVoteUsers    []UserWithOnlyID  `gorm:"many2many:user_vote_problem;association_jointable_foreignkey:user_id;" json:"down_vote_users" binding:"-"`
 	Comments         []Comment         `json:"comments" binding:"-"`
-	Owner            User              `json:"owner" gorm:"foreignkey:OwnerID;association_autoupdate:false;association_autocreate:false" binding:"-"`
+	Owner            User              `json:"owner" gorm:"foreignkey:OwnerID;" binding:"-"`
 	Limit            JSON              `gorm:"column:limit" json:"limit" binding:"required"` // todo store json in db may unreasonable
 }
 
